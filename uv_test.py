@@ -12,10 +12,10 @@ address2 = 0x70
 # Registers
 reg1 = 1    # Sensor reg
 reg2 = 2    # Geiger reg1
-reg3 = 3    # Geiger reg2
-reg4 = 4    # Geiger reg3
-reg5 = 5    # Geiger reg4
-reg6 = 6    # Geiger reg5
+reg2 = 3    # Geiger reg2
+reg2 = 4    # Geiger reg3
+reg2 = 5    # Geiger reg4
+reg2 = 6    # Geiger reg5
 
 # ID BME example
 sensorID = 0xAB
@@ -79,6 +79,12 @@ cursor.execute(sql,(sensorID,roundTemp,roundHum,roundPres))
 HaspLogger.commit()
 
 #connection.commit()
+
+
+
+
+
+
 
 #BME DATA for Pi. Will move this into a new module
 #calibration_params = bme28+
