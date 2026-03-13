@@ -58,23 +58,23 @@ class sensorData:
             # Always unlock the bus after
                 i2c.unlock()
 
-        sensorData.unpackSensor(buffer)   #note: BUFFER NOT FILLING IF QUEUE on pico is empty, so it causes an error.   
+        sensorData.unpackSensor(buffer)  
 
     @staticmethod
     def unpackSensor(data):
-        temp = struct.unpack_from('<H',data,0)[0]      #Unpack in an order following the struct (low endian) on Pico.
+        temp = struct.unpack_from('<H',data,0)[0]      # Unpack in an order following the struct (low endian) on Pico.
         hum = struct.unpack_from('<H',data,2)[0]
         pres = struct.unpack_from('<I',data,4)[0]
 
-        ax = struct.unpack_from('<H',data,8)[0]        #Unpack in an order following the struct (low endian) on Pico.
+        ax = struct.unpack_from('<H',data,8)[0]        # Unpack in an order following the struct (low endian) on Pico.
         ay = struct.unpack_from('<H',data,10)[0]
         az = struct.unpack_from('<H',data,12)[0]
 
-        gx = struct.unpack_from('<H',data,14)[0]       #Unpack in an order following the struct (low endian) on Pico.
+        gx = struct.unpack_from('<H',data,14)[0]       # Unpack in an order following the struct (low endian) on Pico.
         gy = struct.unpack_from('<H',data,16)[0]
         gz = struct.unpack_from('<H',data,18)[0]
 
-        mx = struct.unpack_from('<I',data,20)[0]       #Unpack in an order following the struct (low endian) on Pico.
+        mx = struct.unpack_from('<I',data,20)[0]       # Unpack in an order following the struct (low endian) on Pico.
         my = struct.unpack_from('<H',data,24)[0]
         mz = struct.unpack_from('<H',data,26)[0]
 
@@ -139,7 +139,7 @@ switcher = {
 
 try:
     while True:
-        for reg in range(1,3): #Loop through the registers to read from each device (currently only up to 2 reg for testing)
+        for reg in range(1,3):                              #Loop through the registers to read from each device (currently only up to 2 reg for testing)
             switcher.get(reg, lambda: "Invalid Register")() # Call the function associated with reg1    
         time.sleep(1)
 
