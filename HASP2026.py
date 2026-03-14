@@ -150,7 +150,7 @@ class countData:
                     buffer2 = bytearray(4)
                     i2c.readfrom_into(addr2,buffer2)
                     geiger1Count = countData.decodeCount(buffer2)   # New 
-                    print(f"Geiger Counter 1: iteration {i}   Count:{i} {geiger1Count}") 
+                    print(f"Geiger Counter 1: iteration {i}   Count: {geiger1Count}") 
                     
 
             except Exception as e:
