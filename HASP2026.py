@@ -124,10 +124,10 @@ class countData:
         if i2c.try_lock():
             try:
                 # Write to reg2 and obtain how many counts there are by reading data
-                i2c.writeto(addr2, bytes([reg2]))  # NEW
-                bufferCountNum = bytearray(4)      # NEW
-                i2c.readfrom_into(addr2,bufferCountNum)  # New
-                decodeQueueCountNum = countData.decodeQueueCount(bufferCountNum)   # new
+                i2c.writeto(addr2, bytes([reg2]))  
+                bufferCountNum = bytearray(4)      
+                i2c.readfrom_into(addr2,bufferCountNum)  
+                decodeQueueCountNum = countData.decodeQueueCount(bufferCountNum)   
 
             except Exception as e:
                 print(f"An error occured {e}")
@@ -145,12 +145,12 @@ class countData:
 
         if i2c.try_lock():
             try:
-                for i in range(1,decodeQueueCountNum+1):   # Loop through the number of counts and read from reg2 for each count # NEW 
+                for i in range(1,decodeQueueCountNum+1):   # Loop through the number of counts and read from reg2 for each count 
                     i2c.writeto(addr2, bytes([reg3]))
                     buffer2 = bytearray(4)
                     i2c.readfrom_into(addr2,buffer2)
                     geiger1Count = countData.decodeCount(buffer2)   # New 
-                    print(f"Geiger Counter 1 Count:{i} iteration {geiger1Count}") # New 
+                    print(f"Geiger Counter 1: iteration {i}   Count:{i} {geiger1Count}") 
                     
 
             except Exception as e:
