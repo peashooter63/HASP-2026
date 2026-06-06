@@ -6,18 +6,21 @@ import queue
 import time
 import sqlite3 as sql
 from datetime import datetime, timezone
-import adafruit_ublox
 import digitalio
 
 # Adafruit Libraries 
+import adafruit_ublox
 from adafruit_bme280 import basic as adafruit_bme280
 from adafruit_ads1x15 import ADS1115
 from adafruit_ina228 import INA228 
+import adafruit_scd30
 
 # Class imports 
 from BME280_Class import BME280_DATA
 from GeigerCounter import GeigerClass
 from MPU9250_Class import MPU9250_DATA
+from gpsPacket import NMEA_PACKET
+from GPS_COORDINATES_LIVE import Live_GPS_Coordinates
 
 
 DATA_QUEUE = queue.Queue(maxsize=50)
@@ -110,7 +113,6 @@ def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
                 match REGISTER:
 
                     case 0x01:
-                            print("CASE 0X01 ON")
                             queue_count_number = GeigerClass.READ_QUEUE_1()
                             data = GeigerClass.READ_GEIGER_1(queue_count_number)
                             DATA_QUEUE.put(f"GEIGER_1_COUNTS,{datetime.now(timezone.utc)},{data}")
@@ -118,6 +120,8 @@ def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
 
                     case 0x03:
                             data = BME280_DATA.READ_BME280()
+                            #print("BME DATA TEST!")
+                            #print(data)
                             DATA_QUEUE.put(f"BME280_1,{datetime.now(timezone.utc)},{data}")
                             
 
@@ -174,6 +178,21 @@ def processing_thread():
 
             HaspLogger.commit()
 
+            if database_timer_event.is_set():
+
+                source_con = sql.connect("HaspLogger.db")
+
+                database_backup_con = sql.connect("HASP_BACKUP.db")
+
+                with database_backup_con:
+                    source_con.backup(database_backup_con)
+
+                source_con.close()
+                database_backup_con.close()
+
+                database_timer_event.clear()
+
+
             if timer_event.is_set():
 
                 packet = data_object.get_current_data()
@@ -212,6 +231,20 @@ def downlink_timer():
         time.sleep(600)
         timer_event.set()
 
+def backup_data_timer():
+
+    global stop_database_backup_thread
+
+    while True:
+
+        if stop_database_backup_thread:
+            break
+
+        # This time is subject to change
+        time.sleep(30)
+
+        database_timer_event.set()
+
 
 
 def receive_serial_data():
@@ -234,9 +267,23 @@ def receive_serial_data():
             #    print("No valid data incoming")
 
             if b'$GPGGA' in RAW_DATA:
-                decoded_GPS_DATA = RAW_DATA.decode("utf-8", errors="ignore").strip()
-                print("GPS DATA INCOMING!")
-                # GPS handler here
+                decoded_GPS_DATA = RAW_DATA.decode("utf-8", errors="replace").strip()
+                if "$GPGGA" in decoded_GPS_DATA and "*" in decoded_GPS_DATA:
+                    NMEA_fix_index = decoded_GPS_DATA.find("$GPGGA")
+                    checksum_index = decoded_GPS_DATA.find('*')
+                    formatted_GPS_DATA = decoded_GPS_DATA[NMEA_fix_index:checksum_index+3]
+                    print("RAW GPS DATA")
+                    print(formatted_GPS_DATA)
+                    print("GPS DATA INCOMING!")
+                    NMEA_PACKET.Calculate_Checksum(formatted_GPS_DATA)
+                    NMEA_STRING = NMEA_PACKET.Parse_NMEA(formatted_GPS_DATA)
+                    DATA_QUEUE.put(f"NMEA GPS DATA,{datetime.now(timezone.utc)},{NMEA_STRING}")
+                    #Coordinate Display attempt:
+                    Live_GPS_Coordinates.GET_POSITION_LIVE(NMEA_STRING)
+                    
+
+                else:
+                    print("BAD GPS DATA")
 
             elif RAW_DATA.endswith(b'\r\n') and len(RAW_DATA) >= 4:
                 print("COMMAND INCOMING!")
@@ -318,6 +365,7 @@ def receive_serial_data():
 sensor_data_thread = threading.Thread(target=sensor_worker_thread, args=(SENSOR_REGISTER_ARRAY,))
 data_process_thread = threading.Thread(target=processing_thread)
 timer_thread = threading.Thread(target=downlink_timer)
+database_backup_timer_thread = threading.Thread(target=backup_data_timer)
 serial_thread = threading.Thread(target=receive_serial_data)
 
 
@@ -337,15 +385,16 @@ i2c = busio.I2C(board.SCL, board.SDA)
 # JPL FLAGS 
 #JPL_ARM_FLAG = 0
 #JPL_ON_FLAG = 0 
-
 state_machine = HASP_STATES()
 i2c = busio.I2C(board.SCL, board.SDA)
 serial_comm = SerialComms()
 stop_sensor_data_thread = False
 stop_timer_thread = False
+stop_database_backup_thread = False
 stop_serial_thread = False
 stop_processing_thread = False
 timer_event = threading.Event()
+database_timer_event = threading.Event()
 INTEGRATION_END_FLAG = 0
 
 SET_STATE = state_machine.transition("INTEGRATION")
@@ -397,6 +446,7 @@ while True:
             sensor_data_thread.start()
             data_process_thread.start()
             timer_thread.start()
+            database_backup_timer_thread.start()
 
             # if initialization was successful (will add this in )
             SET_STATE = state_machine.transition("RUNNING")
@@ -405,3 +455,4 @@ while True:
             stop_sensor_data_thread = False
             stop_processing_thread = False
             stop_timer_thread = False 
+            stop_database_backup_thread = False 
