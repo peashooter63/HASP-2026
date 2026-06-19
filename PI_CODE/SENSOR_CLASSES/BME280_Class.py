@@ -20,14 +20,16 @@ class BME280_DATA():
                 i2c.writeto(ADDRESS_1, bytes([REGISTER_3]))
                 buffer = bytearray(20)
                 i2c.readfrom_into(ADDRESS_1,buffer)
+                return BME280_DATA.DECODE_BME280(buffer)
+                
 
             except Exception as e:
                 print(f"An error occured {e}")
+                return None
 
             finally:
             # Always unlock the bus after
                 i2c.unlock()
-        return BME280_DATA.DECODE_BME280(buffer)
     
 
     @staticmethod
@@ -45,23 +47,26 @@ class BME280_I2C_DEVICE:
         self.i2c = i2c
         self.address = address
         self.bme280 = None
-        #self.bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c, address)
+        self.bme280.sea_level_pressure = None       
         self.init = False  
 
     def INIT_BME280(self):
         try:
             self.bme280 = adafruit_bme280.Adafruit_BME280_I2C(self.i2c, self.address) 
             self.init = True
+            self.bme280.sea_level_pressure = 1013.25    # Adjust this reference based on the weather station at Palestine integration (barometric)
             print("BME280 Device initialized!")
-            return True
+    
         except (ValueError, OSError) as e:
             print(f"Error: {e}")
-            return False 
+            self.init = False
+            print("BME280 Device initialization failed!")
             
 
     def READ_BME280_DEVICE(self):
         if self.init:
             try:
+                sea_level_pressure = self.bme280.sea_level_pressure
                 humidity = self.bme280.humidity
                 temperature = self.bme280.temperature
                 pressure = self.bme280.pressure
@@ -71,13 +76,19 @@ class BME280_I2C_DEVICE:
                 print("\nTemperature: %0.1f C" % self.bme280.temperature)
                 print("Humidity: %0.1f %%" % self.bme280.humidity)
                 print("Pressure: %0.1f hPa" % self.bme280.pressure)
+                print("Sea Level Pressure: %0.1f hPa" % self.bme280.sea_level_pressure)
                 #------------------
-                return f"{humidity},{temperature},{pressure},{altitude}"
+                return ( f"{humidity:.2f}" + ":" + f"{temperature:.2f}" + ":" + f"{pressure:.2f}" + ":" + f"{altitude:.2f}" )
         
-            except (ValueError, OSError) as e:
+            except (ValueError, OSError,RuntimeError) as e:
                 print(f"Error {e}")
                 return None
             
         else:
             print("Device not ready")
             return None
+        
+    @property
+    def BME280_INITIALIZED(self):
+        return self.init
+
