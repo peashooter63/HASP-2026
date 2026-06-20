@@ -1,7 +1,7 @@
+# IMPORTS 
 import busio
 import board
 import struct
-i2c = busio.I2C(board.SCL, board.SDA)
 from robohat_mpu9250.mpu9250 import MPU9250
 from robohat_mpu9250.mpu6500 import MPU6500
 from robohat_mpu9250.ak8963 import AK8963
@@ -9,9 +9,16 @@ import os.path
 from pathlib import Path
 import json
 
+# Initialize I2C (using default SCL and SDA pins)
+i2c = busio.I2C(board.SCL, board.SDA)
+
+# PICO ADDRESSES 
 ADDRESS_1 = 0X2C
-REGISTER_4 = 0X04
-REGISTER_5 = 0X05
+#ADDRESS_2 = ??? 
+
+# MPU9250 REGISTERS 
+REGISTER_8 = 0X08
+REGISTER_9 = 0X09
 
 class MPU9250_DATA: # Later add a data parameter
    
@@ -20,7 +27,7 @@ class MPU9250_DATA: # Later add a data parameter
         if i2c.try_lock():
             try:
                 # Write to the slave
-                i2c.writeto(ADDRESS_1, bytes([REGISTER_4]))
+                i2c.writeto(ADDRESS_1, bytes([REGISTER_8]))
                 buffer = bytearray(24)
                 i2c.readfrom_into(ADDRESS_1,buffer)
                 return MPU9250_DATA.DECODE_MPU9250_1(buffer)
@@ -39,7 +46,7 @@ class MPU9250_DATA: # Later add a data parameter
         if i2c.try_lock():
             try:
                 # Write to the slave
-                i2c.writeto(ADDRESS_1, bytes([REGISTER_5]))
+                i2c.writeto(ADDRESS_1, bytes([REGISTER_9]))
                 buffer = bytearray(20)
                 i2c.readfrom_into(ADDRESS_1,buffer)
                 return MPU9250_DATA.DECODE_MPU9250_2(buffer)
