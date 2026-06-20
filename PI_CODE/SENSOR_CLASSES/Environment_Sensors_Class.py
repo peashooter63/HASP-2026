@@ -1,3 +1,4 @@
+# IMPORTS 
 import adafruit_scd30
 import adafruit_sgp30
 import time
@@ -22,11 +23,10 @@ class SCD30_I2C_DEVICE:
             self.init = True
             print("SCD30_INITIALIZED")
 
-        except (ValueError, OSError,RuntimeError) as e:
+        except Exception as e:
             print(f"Error: {e}")
             self.init = False
             print("Error setting up SCD30")
-
 
 
 
@@ -70,7 +70,7 @@ class PI_SGP30_I2C_DEVICE:
                 print("Calibrate SGP30 baselines first")
                 self.init = False
 
-        except (ValueError, OSError,RuntimeError) as e:
+        except Exception as e:
             print(f"Error: {e}")
             self.init = False
             print("Error setting up SGP30")
@@ -100,7 +100,7 @@ class PI_SGP30_I2C_DEVICE:
             self.sgp30_calibration_ready = True 
             return (eCO2_baseline,TVOC_baseline)
 
-        except (ValueError, OSError,RuntimeError) as e:
+        except Exception as e:
             print(f"Error: {e}")
             self.init = False
             print("Error calibrating the SGP30.")
