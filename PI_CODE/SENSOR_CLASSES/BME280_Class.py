@@ -1,14 +1,17 @@
+# IMPORTS 
 import busio
 import board
 import struct
 from adafruit_bme280 import basic as adafruit_bme280
 
-ADDRESS_1 = 0X2C
-REGISTER_3 = 0X03
-
-
 # Initialize I2C (using default SCL and SDA pins)
 i2c = busio.I2C(board.SCL, board.SDA)
+
+ADDRESS_1 = 0X2C
+#ADDRESS_2 = ???? 
+
+# Registers 
+REGISTER_5 = 0X05
 
 class BME280_DATA(): 
    
@@ -17,7 +20,7 @@ class BME280_DATA():
         if i2c.try_lock():
             try:
                 # Write to the slave
-                i2c.writeto(ADDRESS_1, bytes([REGISTER_3]))
+                i2c.writeto(ADDRESS_1, bytes([REGISTER_5]))
                 buffer = bytearray(20)
                 i2c.readfrom_into(ADDRESS_1,buffer)
                 return BME280_DATA.DECODE_BME280(buffer)
@@ -57,7 +60,7 @@ class BME280_I2C_DEVICE:
             self.bme280.sea_level_pressure = 1013.25    # Adjust this reference based on the weather station at Palestine integration (barometric)
             print("BME280 Device initialized!")
     
-        except (ValueError, OSError) as e:
+        except Exception as e:
             print(f"Error: {e}")
             self.init = False
             print("BME280 Device initialization failed!")
@@ -80,7 +83,7 @@ class BME280_I2C_DEVICE:
                 #------------------
                 return ( f"{humidity:.2f}" + ":" + f"{temperature:.2f}" + ":" + f"{pressure:.2f}" + ":" + f"{altitude:.2f}" )
         
-            except (ValueError, OSError,RuntimeError) as e:
+            except Exception as e:
                 print(f"Error {e}")
                 return None
             
