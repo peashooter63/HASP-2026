@@ -1,36 +1,45 @@
+#IMPORTS 
+
 import busio
 import serial
 import board
 import threading
 import queue
+from collections import deque 
+import os 
 import time
 import sqlite3 as sql
 from datetime import datetime, timezone
+from adafruit_extended_bus import ExtendedI2C as I2C 
 import digitalio
 
 # Adafruit Libraries 
 import adafruit_ublox
 from adafruit_bme280 import basic as adafruit_bme280
-from adafruit_ads1x15 import ADS1115
-from adafruit_ina228 import INA228 
+from adafruit_ads1x15 import ADS1115, AnalogIn, ads1x15
+import adafruit_ina228
 import adafruit_scd30
+import adafruit_sgp30
 
-# Class imports 
-from BME280_Class import BME280_DATA
+# Custom Class Imports 
+from BME280_Class import BME280_DATA,BME280_I2C_DEVICE
 from GeigerCounter import GeigerClass
-from MPU9250_Class import MPU9250_DATA
+from MPU9250_Class import MPU9250_DATA, MPU9250_I2C_DEVICE
+from ADS1115_Class import ADS1115_DEVICE
+from INA228_Class import INA228_I2C_DEVICE
 from gpsPacket import NMEA_PACKET
 from GPS_COORDINATES_LIVE import Live_GPS_Coordinates
+from GPS_UBLOX_Class import I2C_GPS_UBLOX
+from Environment_Sensors_Class import SCD30_I2C_DEVICE
 
 
 DATA_QUEUE = queue.Queue(maxsize=50)
-#SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03, 0x04, 0x05])
+circular_buffer = deque(maxlen=10)
+SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03,0x0A, 0X0C,0X0E, 0x05, 0X06, 0x07,0x08,0x09,0x10,0X11,0x12,0x13,0x14,0x15,0x16])
 
 
-SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03, 0x04, 0x05])
+PACKET_COUNTER = 0 
 #i2c_lock = threading.Lock()
-i2c = busio.I2C(board.SCL, board.SDA)
-
 
 class SerialComms:
 
@@ -51,30 +60,114 @@ class SerialComms:
         self.__port.write(data)
 
 
-class LatestData:
+class Latest_Data:
 
     def __init__(self):
         self._lock = threading.Lock()
         self.bme = 0
         self.mpu1 = 0
         self.mpu2 = 0
-        self.geiger1 = 0
+
+        self.JPL_ON = 0 
+        self.JPL_ARM = 0
+
+        self.INA228_1 = 0 
+        self.INA228_2 = 0
+        self.INA228_3 = 0 
+        self.INA228_4 = 0 
+    
+        self.JPL_A0 = 0
+        self.JPL_A1 = 0
+        self.JPL_A2 = 0
+        self.JPL_A3 = 0
+
+        self.GEIGER_1 = 0
+        self.GEIGER_2 = 0
+        self.GEIGER_3 = 0
+        self.GEIGER_4 = 0
+        self.GEIGER_5 = 0
+        self.GEIGER_6 = 0
+        self.GEIGER_7 = 0
+        self.GEIGER_8 = 0
+        self.GEIGER_9 = 0
+        self.GEIGER_10 = 0 
+
+        self.PI_BME280 = 0
+        self.PI_MPU9250 = 0 
+        self.PI_UBLOX_GPS = 0
 
     def update_sensor_data(self, sensor_ID, current_data):
+        sensor_id_list = (["JPL_ON","JPL_ARM","INA228_1","INA228_2","INA228_3","INA228_4",
+                          "JPL_ARM_STATUS","JPL_A0","JPL_A1","JPL_A2","JPL_A3",
+                          "PI_BME280", "PI_MPU9250","GEIGER_1","GEIGER_1","GEIGER_2","GEIGER_3"
+                          "GEIGER_4","GEIGER_5","GEIGER_6","GEIGER_7","GEIGER_8","GEIGER_9","GEIGER_10","PI_UBLOX_GPS"
+                          ])
+        
         with self._lock:
-            if sensor_ID == "BME280_1":
-                self.bme = current_data
-            elif sensor_ID == "MPU9250_1":
-                self.mpu1 = current_data
-            elif sensor_ID == "MPU9250_2":
-                self.mpu2 = current_data
-            elif sensor_ID == "GEIGER_1":
-                self.geiger1 = current_data
+            if sensor_ID in sensor_id_list:
+                setattr(self,sensor_ID,current_data)
 
-    def get_current_data(self):
+
+# Build CESARS Packet -----------------------------
+
+    def get_packet_data(self):
         with self._lock:
-            return f"{self.bme},{self.mpu1},{self.mpu2},{self.geiger1}"
+            global PACKET_COUNTER 
+            PACKET_COUNTER += 1
+            timestamp = datetime.now(timezone.utc)
+            ending_character = "\r\n"
+            packet_checksum = 0 
 
+            BUILD_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}"  + ","+ f"{timestamp}" +  
+                           "," f"{self.JPL_ON}" + ":" + f"{self.JPL_ARM}" + ":" + f"{self.JPL_A0}" + ":"
+                + f"{self.JPL_A1}"+ ":" + f"{self.JPL_A2}" + ":" + f"{self.JPL_A3}" + ":" 
+                + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":" + f"{self.PI_UBLOX_GPS}"
+                + "," + f"{packet_checksum}" + "," + f"{ending_character}"
+            )
+
+            packet_payload_bytes = BUILD_PACKET.encode("utf-8")
+            packet_payload_length = len(packet_payload_bytes)
+            #CESARS_Packet = (f"C,E,{packet_payload_length},{BUILD_PACKET},CHECKSUM,{ending_character}")   
+
+            
+            CESARS_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}" + "," + f"{packet_payload_length}" + ","+ f"{timestamp}" +  
+                           "," f"{self.JPL_ON}" + ":" + f"{self.JPL_ARM}" + ":" + f"{self.JPL_A0}" + ":"
+                + f"{self.JPL_A1}"+ ":" + f"{self.JPL_A2}" + ":" + f"{self.JPL_A3}" + ":" 
+                + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":" + f"{self.PI_UBLOX_GPS}"
+                + "," + f"{packet_checksum}" + "," + f"{ending_character}"
+            )
+
+            update_latest_packets()
+            return CESARS_PACKET
+        
+
+class latest_command:   
+
+    def __init__(self):
+        self.current_command = None
+        self.command_list = (["0x9070","0x916F","0x926E","0x936D","","0x946C",
+                            "0x956B","0x966A","0x9769","0x9967","0x9A66",
+                            "0x9B65", "0x9C64","0x9D63","0x9E62","0x9F61"
+                            ])
+        
+    def set_latest_command(self,command): 
+        if command in self.command_list:
+                self.current_command = command
+        else:
+            print("Command not in list")
+            
+    def get_latest_command(self,command):
+        return self.current_command
+
+
+
+# Utility Method   -----------------------------
+ 
+def update_latest_packets():
+        latest_data = Recent_Data.get_packet_data()
+        circular_buffer.append(latest_data)
+
+# HASP Phases -----------------------------
 
 class HASP_STATES:
 
@@ -88,6 +181,8 @@ class HASP_STATES:
         else:
             print(f"Invalid State {state}")
 
+# Thread methods -----------------------------
+
 def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
     global stop_sensor_data_thread
 
@@ -99,7 +194,6 @@ def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
     #print(stop_sensor_data_thread)
 
     while True:
-        
 
         if stop_sensor_data_thread:
             break
@@ -115,43 +209,101 @@ def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
                     case 0x01:
                             queue_count_number = GeigerClass.READ_QUEUE_1()
                             data = GeigerClass.READ_GEIGER_1(queue_count_number)
-                            DATA_QUEUE.put(f"GEIGER_1_COUNTS,{datetime.now(timezone.utc)},{data}")
-                        
+                            DATA_QUEUE.put(f"GEIGER_1,{datetime.now(timezone.utc)},{data}")
 
                     case 0x03:
+                            pass
+                            #queue_count_number = geiger_2.READ_QUEUE_1()
+                            #data = geiger_2.READ_GEIGER(queue_count_number)
+                            #DATA_QUEUE.put(f"GEIGER_2,{datetime.now(timezone.utc)},{data}")
+
+                    case 0x0A:
+                            pass
+                            #queue_count_number = geiger_3.READ_QUEUE_1()
+                            #data = geiger_3.READ_GEIGER(queue_count_number)
+                            #DATA_QUEUE.put(f"GEIGER_3,{datetime.now(timezone.utc)},{data}")
+
+                    case 0X0C:
+                            pass
+                            #queue_count_number = geiger_4.READ_QUEUE_1()
+                            #data = geiger_4.READ_GEIGER(queue_count_number)
+                            #DATA_QUEUE.put(f"GEIGER_4,{datetime.now(timezone.utc)},{data}")
+
+                    case 0x0E:
+                            pass
+                            #queue_count_number = geiger_5.READ_QUEUE_1()
+                            #data = geiger_5.READ_GEIGER_1(queue_count_number)
+                            #DATA_QUEUE.put(f"GEIGER_5,{datetime.now(timezone.utc)},{data}")
+                        
+                    case 0x05:
                             data = BME280_DATA.READ_BME280()
                             #print("BME DATA TEST!")
                             #print(data)
                             DATA_QUEUE.put(f"BME280_1,{datetime.now(timezone.utc)},{data}")
                             
 
-                    case 0x04:
+                    case 0x08:
                             data = MPU9250_DATA.READ_MPU9250_1()
                             DATA_QUEUE.put(f"MPU9250_1,{datetime.now(timezone.utc)},{data}")
                             time.sleep(5)
 
-                    case 0x05:
+                    case 0x09:
                             data = MPU9250_DATA.READ_MPU9250_2()
                             DATA_QUEUE.put(f"MPU9250_2,{datetime.now(timezone.utc)},{data}")
 
-        except Exception:
-            print("I2C BUS error!")
+                    # PI DEVICE READS -------------------------
+
+                    case 0x10:  
+                        data = PI_BME280_Class.READ_BME280_DEVICE()                         
+                        DATA_QUEUE.put(f"PI_BME280,{datetime.now(timezone.utc)},{data}")
+
                     
-        time.sleep(1)
+                    case 0x11:                                                              
+                        data = PI_MPU9250_Class.READ_MPU9250_DEVICE()
+                        DATA_QUEUE.put(f"PI_MPU9250,{datetime.now(timezone.utc)},{data}")
 
 
-                #case 0x20:  # Need to replace this with the I2C sparkfun GPS, not nmea. Nmea belongs in serial comm thread.
-                #    data = GPSPacket.READ_NMEA()
-                #    DATA_QUEUE.put(f"NMEA,{datetime.now(timezone.utc)},{data}")
+                    case 0x12:
+                        GPS_UBLOX_DATA = PI_UBLOX_GPS_Class.GET_GPS_DATA()                  
+                        DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{GPS_UBLOX_DATA}")
 
-    
+                    case 0x13:
+                        
+                        channel_timestamp = datetime.now(timezone.utc)
+                        data_channel_1 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(0)
+                        data_channel_2 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(1)
+                        data_channel_3 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(2)
+                        data_channel_4 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(3)
+
+                        DATA_QUEUE.put(f"JPL_A0,{channel_timestamp},{data_channel_1}")
+                        DATA_QUEUE.put(f"JPL_A1,{channel_timestamp},{data_channel_2}")
+                        DATA_QUEUE.put(f"JPL_A2,{channel_timestamp},{data_channel_3}")
+                        DATA_QUEUE.put(f"JPL_A3,{channel_timestamp},{data_channel_4}")
+                         
+                    case 0x14:
+                        pass
+                        #data_channel_1 = PI_ADS1115_MICS5524.READ_ADS1115_CHANNELS(0)
+                        #DATA_QUEUE.put(f"MICS5524_A0,{datetime.now(channel_timestamp)},{data_channel_1}")
+
+                    case 0x15:
+                        data = PI_SCD30_Class.READ_SCD30_DATA()
+                        DATA_QUEUE.put(f"SCD30,{datetime.now(timezone.utc)},{data}")
+
+                    case 0x16:
+                        data = INA228_1.READ_INA228()
+                        DATA_QUEUE.put(f"INA228_1,{datetime.now(timezone.utc)},{data}")
+
+            
+
+            time.sleep(1)
+        except Exception as e:  
+            print(f"Reading Devices failed. Error: {e}")
+
 
 def processing_thread():
     global stop_processing_thread
     global HaspLogger
     global Hasp_Packet
-
-    data_object = LatestData()
 
 
     while True:
@@ -162,12 +314,12 @@ def processing_thread():
             print("SEnsor thread Loop running")
             data_string = DATA_QUEUE.get()
             parts = data_string.split(",")
-
-            sensor_ID = parts[0]
-            timestamp = parts[1]
-            current_data = ",".join(parts[2:])
-
-            data_object.update_sensor_data(sensor_ID, current_data)
+            if len(parts) >= 3:
+                sensor_ID = parts[0]
+                timestamp = parts[1]
+                current_data = ",".join(parts[2:])
+                Recent_Data.update_sensor_data(sensor_ID, current_data)
+                #update_latest_packets()
 
             with sql.connect("HaspLogger.db") as HaspLogger:
                 cursor = HaspLogger.cursor()
@@ -189,14 +341,12 @@ def processing_thread():
 
                 source_con.close()
                 database_backup_con.close()
-
                 database_timer_event.clear()
 
 
             if timer_event.is_set():
 
-                packet = data_object.get_current_data()
-                cesars_packet = (f"C,E,{packet},END")
+                cesars_packet = Recent_Data.get_packet_data()
                 uart_buffer = bytearray(cesars_packet, "utf-8")
 
                 if serial_comm.isOpen():
@@ -216,9 +366,6 @@ def processing_thread():
 
             DATA_QUEUE.task_done()
 
-
-
-
 def downlink_timer():
 
     global stop_timer_thread
@@ -228,7 +375,7 @@ def downlink_timer():
         if stop_timer_thread:
             break
 
-        time.sleep(600)
+        time.sleep(30)
         timer_event.set()
 
 def backup_data_timer():
@@ -294,27 +441,34 @@ def receive_serial_data():
                 if (command_byte_1 + command_byte_2) == 256:
                     command_byte_join = (command_byte_1 << 8) | command_byte_2
                     print("Match commands")
+                    latest_command.set_latest_command(f"{command_byte_join}") 
                     match command_byte_join:
                     
 
                         case 0x9070:
+                            
+                            for i in reversed(range(len((circular_buffer)))):
+                                buffer = bytearray(circular_buffer[i], "utf-8")
+                                print(buffer)
+                                serial_comm.writePort(buffer)
+                                DATA_QUEUE.put(f"COMMAND 0X9070,{datetime.now(timezone.utc)},{str(command_byte_join)}")
                     
-                            DATA_QUEUE.put(f"COMMAND 0X9070,{datetime.now(timezone.utc)},{str(command_byte_join)}")
-                
                         case 0x9769:
 
                             pass
                         case 0x916F:
                             pass
+                            # Recalibration command. Recalibrate MPU9250 and SGP30?  
                         case 0x926E:
                             #if JPL_ARM_FLAG == 1:
                             #    JPL_On.value = 1
                             #    time.sleep(0.5)
                             #    JPL_On.value = 0 
-                            #    JPL_ARM_FLAG = 1 
+                            #    JPL_On_FLAG = 1 
                             DATA_QUEUE.put(f"JPL Arm enabled,{datetime.now(timezone.utc)},{str(command_byte_join)}")
+                            DATA_QUEUE.put(f"JPL_ON,{datetime.now(timezone.utc)},{str(1)}")    
 
-                            #else:
+                            #else:  
                             #    DATA_QUEUE.put(f"The System is not armed,{datetime.now(timezone.utc)},{str(command_byte_join)}")
 
                         case 0x936D:
@@ -326,13 +480,15 @@ def receive_serial_data():
 
                             #else:
                                 #DATA_QUEUE.put(f"Arm system before POWER OFF,{datetime.now(timezone.utc)},{str(command_byte_join)}")
-
+                        
+                            DATA_QUEUE.put(f"JPL_Power_OFF_STATUS,{datetime.now(timezone.utc)},{str(1)}") 
                         case 0x946C:
                             #JPL_arm.value = 1
                             #time.sleep(0.5)
                             #JPL_arm.value = 0 
                             #JPL_ARM_FLAG = 1 
                             DATA_QUEUE.put(f"System armed,{datetime.now(timezone.utc)},{str(command_byte_join)}")
+                            DATA_QUEUE.put(f"JPL_ARM,{datetime.now(timezone.utc)},{str(1)}")     #Put a flag in the str()
                                
                         case 0x956B:
                             #if JPL_ARM_FLAG == 1:
@@ -348,7 +504,10 @@ def receive_serial_data():
                         case 0x966A:
                             pass
                         case 0x9868:
-                            pass
+
+                            buffer = bytearray(latest_command.get_latest_command().encode("utf-8"))
+                            serial_comm.writePort(buffer)
+                            DATA_QUEUE.put(f"COMMAND 0X9868,{datetime.now(timezone.utc)},{str(command_byte_join)}")
 
                         case 0X9967:
                             INTEGRATION_END_FLAG = 1 
@@ -358,8 +517,9 @@ def receive_serial_data():
         else:
             print("Serial Port not available")
 
-# MAIN THREAD
+# MAIN THREAD-------------------------------------------------------------------------------
 
+#def main_thread():
 
 # Define Threads
 sensor_data_thread = threading.Thread(target=sensor_worker_thread, args=(SENSOR_REGISTER_ARRAY,))
@@ -368,9 +528,6 @@ timer_thread = threading.Thread(target=downlink_timer)
 database_backup_timer_thread = threading.Thread(target=backup_data_timer)
 serial_thread = threading.Thread(target=receive_serial_data)
 
-
-# Initialize System 
-i2c = busio.I2C(board.SCL, board.SDA)
 
 # Mapped to GPIO pins
 #JPL_arm = digitalio.DigitalInOut(board.GPIO23)
@@ -382,12 +539,56 @@ i2c = busio.I2C(board.SCL, board.SDA)
 #JPL_Off = digitalio.DigitalInOut(board.GP25)
 #JPL_Off.direction = digitalio.Direction.OUTPUT
 
-# JPL FLAGS 
-#JPL_ARM_FLAG = 0
-#JPL_ON_FLAG = 0 
-state_machine = HASP_STATES()
+
+# ADC ADDRESSES 
+ADS1115_ADDRESS_1 = 0X48   
+ADS1115_ADDRESS_2_MICS = 0X49    
+
+# POWER MONITOR ADDRESSES 
+INA228_ADDRESS_1 = 0X40      
+INA228_ADDRESS_2 = 0X41
+INA228_ADDRESS_3 = 0X42         # This can conflict with the PI_UBLOX_GPS Address. Please place on another line. 
+INA228_ADDRESS_4 = 0X43 
+
+# SENSOR I2C ADDRESSES 
+PI_BME280_ADDRESS = 0X77
+PI_MPU9250_ADDRESS = 0X68
+PI_UBLOX_GPS_ADDRESS = 0X42
+PI_SCD30_ADDRESS = 0X61     # NDIR CO2 Temperature and Humidity 
+PI_SGP30 = 0X58             # Air Quality Sensor (Monitor Air QUality)
+
+# GEIGER COUNTER REGISTERS 
+
+REGISTER_1 = 0X01     # GEIGER_1_COUNT_REGISTER 1
+REGISTER_2 = 0X02     # GEIGER_1_DATA_REGISTER  2
+REGISTER_3 = 0X03     # GEIGER_2_COUNT_REGISTER 3
+REGISTER_4 = 0X04     # GEIGER_2_DATA_REGISTER  4
+
+REGISTER_10 = 0X0A    # GEIGER_3_COUNT_REGISTER 10
+REGISTER_11 = 0X0B    # GEIGER_3_DATA_REGISTER  11
+REGISTER_12 = 0X0C    # GEIGER_4_COUNT_REGISTER 12
+REGISTER_13 = 0X0D    # GEIGER_4_DATA_REGISTER  13
+REGISTER_14 = 0X0E    # GEIGER_5_COUNT_REGISTER 14
+REGISTER_15 = 0X0F    # GEIGER_5_DATA_REGISTER  15
+
+# PICO ADDRESSES 
+PICO_1_ADDR = 0X2C 
+#PICO_2_ADDR = 0XAB         # Change out 
+
+# I2C BUS 
 i2c = busio.I2C(board.SCL, board.SDA)
+i2c_pi_bus = I2C(3)
+
+
+# JPL FLAGS 
+JPL_ARM_FLAG = 0
+JPL_ON_FLAG = 0 
+
+# Thread class instances 
+state_machine = HASP_STATES()
 serial_comm = SerialComms()
+Recent_Data = Latest_Data()
+
 stop_sensor_data_thread = False
 stop_timer_thread = False
 stop_database_backup_thread = False
@@ -396,9 +597,35 @@ stop_processing_thread = False
 timer_event = threading.Event()
 database_timer_event = threading.Event()
 INTEGRATION_END_FLAG = 0
-
 SET_STATE = state_machine.transition("INTEGRATION")
 serial_thread.start() 
+
+# CLASS INSTANCES 
+
+# SENSORS I2C 
+PI_BME280_Class = BME280_I2C_DEVICE(i2c_pi_bus,PI_BME280_ADDRESS)
+PI_MPU9250_Class = MPU9250_I2C_DEVICE(i2c_pi_bus,PI_MPU9250_ADDRESS)
+PI_UBLOX_GPS_Class = I2C_GPS_UBLOX(i2c_pi_bus,PI_UBLOX_GPS_ADDRESS)     
+PI_SCD30_Class = SCD30_I2C_DEVICE(i2c_pi_bus,PI_SCD30_ADDRESS)
+#PI_SGP30_Class = 
+
+# ANALOG 
+PI_ADS1115_JPL_1 = ADS1115_DEVICE(i2c_pi_bus,ADS1115_ADDRESS_1)              
+#PI_ADS1115_MICS5524 = ADS1115_DEVICE(i2c_pi_bus,ADS1115_ADDRESS_2_MICS)
+
+# POWER MONITORS 
+INA228_1 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_1)
+#INA228_2 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_2)
+#INA228_3 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_3)
+#INA228_4 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_4)
+
+# GEIGER COUNTERS 
+# geiger_1 = GeigerClass(i2c,PICO_1_ADDR, REGISTER_1, REGISTER_2)
+# geiger_2 = GeigerClass(i2c, PICO_1_ADDR, REGISTER_3, REGISTER_4)
+# geiger_3 = GeigerClass(i2c, PICO_1_ADDR, REGISTER_10, REGISTER_11)
+# geiger_4 = GeigerClass(i2c, PICO_1_ADDR, REGISTER_12, REGISTER_13)
+# geiger_5 = GeigerClass(i2c, PICO_1_ADDR, REGISTER_14, REGISTER_15)
+
 
 while True:
     
@@ -408,51 +635,80 @@ while True:
     match CURRENT_STATE:
 
         case "INTEGRATION":
+            
 
             if INTEGRATION_END_FLAG == 1:
                 SET_STATE = state_machine.transition("INIT")
 
-        case "INIT":
-            print(CURRENT_STATE)
+        case "INIT":                         
+            #print(CURRENT_STATE)
             INTEGRATION_END_FLAG = 0
-            
-            # Place Adafruit I2C object instances here LATER 
 
-            # Database Logger
-            with sql.connect("HaspLogger.db") as HaspLogger:
-                cursor = HaspLogger.cursor()
-                cursor.execute("DROP TABLE IF EXISTS HASP_Table")
-
-            cursor.execute(
-                "CREATE TABLE IF NOT EXISTS HASP_Table (SensorID TEXT, DATA TEXT, TIME TEXT,PACKET)"
-            )
-
-            HaspLogger.commit()
-
-            # Downlink Logger
-            with sql.connect("Hasp_Packet.db") as Hasp_Packet:
-                cursor = Hasp_Packet.cursor()
-                cursor.execute("DROP TABLE IF EXISTS HASP_Table_PACKET")
-
-            cursor.execute(
-                "CREATE TABLE IF NOT EXISTS HASP_Table_PACKET (SensorID TEXT, PACKET TEXT, TIME TEXT)"
-            )
-
-            Hasp_Packet.commit()
-
-            # Set thread flags to keep threads off during initialization
+            # Initialize devices 
+            PI_MPU9250_Class.SETUP_MPU9250()
+            PI_BME280_Class.INIT_BME280()
+            PI_UBLOX_GPS_Class.INIT_GPS()  
+            PI_SCD30_Class.INIT_SCD30()
 
 
-            sensor_data_thread.start()
-            data_process_thread.start()
-            timer_thread.start()
-            database_backup_timer_thread.start()
+            # Initialize Channels 
+            PI_ADS1115_JPL_1.INIT_ADS1115_CHANNELS()        
+            #PI_ADS1115_MICS5524.INIT_ADS1115_CHANNELS()
 
-            # if initialization was successful (will add this in )
-            SET_STATE = state_machine.transition("RUNNING")
+            # Initialize Power monitors
+            INA228_1.INIT_INA228()            
+            #INA228_2.INIT_INA228()      
+            #INA228_3.INIT_INA228() 
+            #INA228_4.INIT_INA228()            
+
+
+            # Check if initialization work 
+            if (PI_BME280_Class.BME280_INITIALIZED and PI_MPU9250_Class.MPU9250_INITIALIZED 
+            and PI_UBLOX_GPS_Class.GPS_INITIALIZED 
+            and PI_ADS1115_JPL_1.CHANNELS_INITIALIZED
+            and PI_SCD30_Class.SCD30_INITIALIZED and INA228_1.INA228_INITIALIZED):   # Will change this to a wrapper that loops and initializes all devices together. 
+                print("All Devices INITIALIZED")
+
+                # Database Logger
+                with sql.connect("HaspLogger.db") as HaspLogger:
+                    cursor = HaspLogger.cursor()
+                    cursor.execute("DROP TABLE IF EXISTS HASP_Table")
+
+                cursor.execute(
+                    "CREATE TABLE IF NOT EXISTS HASP_Table (SensorID TEXT, DATA TEXT, TIME TEXT,PACKET)"
+                )
+
+                HaspLogger.commit()
+
+                # Downlink Logger
+                with sql.connect("Hasp_Packet.db") as Hasp_Packet:
+                    cursor = Hasp_Packet.cursor()
+                    cursor.execute("DROP TABLE IF EXISTS HASP_Table_PACKET")
+
+                cursor.execute(
+                    "CREATE TABLE IF NOT EXISTS HASP_Table_PACKET (SensorID TEXT, PACKET TEXT, TIME TEXT)"
+                )
+
+                Hasp_Packet.commit()
+
+
+                sensor_data_thread.start()
+                data_process_thread.start()
+                timer_thread.start()
+                database_backup_timer_thread.start()
+
+                
+                SET_STATE = state_machine.transition("RUNNING")
+    
+            else:
+                print("REINITIALIZE SYSTEM AGAIN")
 
         case "RUNNING":
+            #print(CURRENT_STATE)
             stop_sensor_data_thread = False
             stop_processing_thread = False
             stop_timer_thread = False 
             stop_database_backup_thread = False 
+
+#if __name__ == "__main__": 
+#   main_thread()
