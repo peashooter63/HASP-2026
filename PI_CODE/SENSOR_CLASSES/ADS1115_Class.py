@@ -1,3 +1,4 @@
+# IMPORTS 
 from adafruit_ads1x15 import ADS1115, AnalogIn, ads1x15
 from adafruit_ads1x15.ads1x15 import Mode 
 
@@ -26,7 +27,7 @@ class ADS1115_DEVICE:
             self.init = True
             print("Channels initialized!")
 
-        except (ValueError, OSError,RuntimeError) as e:
+        except Exception as e:
             print(f"Error initializing channel: {e}")
             self.init = False 
         
@@ -42,9 +43,9 @@ class ADS1115_DEVICE:
                     print(f"Voltage: {voltage:.2f} ")
                     print(f"Value: {value:.2f} ")
 
-                    return   ":" + f"{voltage:.2f}" + ":" + f"{value:.2f}" + ":" 
+                    return  f"{voltage:.2f}" + ":" + f"{value:.2f}" 
             
-                except (ValueError, OSError, RuntimeError) as e:
+                except Exception as e:
                     print(f"Error {e}")
                     return None
                 
