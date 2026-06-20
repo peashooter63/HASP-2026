@@ -1,3 +1,4 @@
+# IMPORTS 
 import adafruit_ina228
 import time
 
@@ -15,7 +16,7 @@ class INA228_I2C_DEVICE:
             self.init = True
             print("INA228 INITIALIZED")
 
-        except (ValueError, OSError,RuntimeError) as e:
+        except Exception as e:
             print(f"Error: {e}")
             self.init = False
             print("Error setting up ina228")
@@ -36,12 +37,12 @@ class INA228_I2C_DEVICE:
             power_temperature = self.ina228.die_temperature
             bus_voltage = self.ina228.bus_voltage
 
-            s =( ":" + f"{current:.2f}" + ":" + f"{shunt_voltage:.2f}" + ":" + f"{self.ina228.power}" + ":" 
-                + f"{ power_temperature:.2f}"+ ":" + f"{ bus_voltage:.2f}" + ":" )
+            s =(f"{current:.2f}" + ":" + f"{shunt_voltage:.2f}" + ":" + f"{self.ina228.power}" + ":" 
+                + f"{ power_temperature:.2f}"+ ":" + f"{ bus_voltage:.2f}" )
             
             return s 
 
-        except (ValueError, OSError,RuntimeError) as e:
+        except Exception as e:
             print(f"Error: {e}")
             self.init = False
             print("Error setting up ina228")
