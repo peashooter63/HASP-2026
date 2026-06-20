@@ -1,3 +1,5 @@
+# This was written by Alfred. New Packet Design in main. 
+
 #pragma pack(push, 1)
 struct CesarsPacket {
     char ID_1; 
