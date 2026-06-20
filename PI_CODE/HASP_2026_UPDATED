@@ -1,3 +1,5 @@
+#IMPORTS 
+
 import busio
 import serial
 import board
@@ -37,9 +39,6 @@ circular_buffer = deque(maxlen=10)
 SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03, 0x04, 0x05, 0X06, 0x07,0x08,0x09,0x11,0X12])
 PACKET_COUNTER = 0 
 #i2c_lock = threading.Lock()
-i2c = busio.I2C(board.SCL, board.SDA)
-
-
 
 class SerialComms:
 
@@ -96,10 +95,6 @@ class Latest_Data:
         self.PI_MPU9250 = 0 
         self.PI_UBLOX_GPS = 0
 
-
-
-
-
     def update_sensor_data(self, sensor_ID, current_data):     # UPDATE THIS and for processing design make a list to check if a sensor ID is a sensor you want to ctlly downlink
         sensor_id_list = (["JPL_ON","JPL_ARM","INA228_1","INA228_2","INA228_3","INA228_4",
                           "JPL_ARM_STATUS","JPL_A0","JPL_A1","JPL_A2","JPL_A3",
@@ -111,6 +106,8 @@ class Latest_Data:
             if sensor_ID in sensor_id_list:
                 setattr(self,sensor_ID,current_data)
 
+
+# Build CESARS Packet -----------------------------
 
     def get_packet_data(self):
         with self._lock:
@@ -162,13 +159,13 @@ class latest_command:
 
 
 
-# Utility Methods
+# Utility Method   -----------------------------
  
 def update_latest_packets():
         latest_data = Recent_Data.get_packet_data()
         circular_buffer.append(latest_data)
 
-
+# HASP Phases -----------------------------
 
 class HASP_STATES:
 
@@ -181,6 +178,8 @@ class HASP_STATES:
             return self.current_state
         else:
             print(f"Invalid State {state}")
+
+# Thread methods -----------------------------
 
 def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
     global stop_sensor_data_thread
@@ -433,6 +432,7 @@ def receive_serial_data():
                             pass
                         case 0x916F:
                             pass
+                            # Recalibration command. Recalibrate MPU9250 and SGP30?  
                         case 0x926E:
                             #if JPL_ARM_FLAG == 1:
                             #    JPL_On.value = 1
@@ -491,7 +491,9 @@ def receive_serial_data():
         else:
             print("Serial Port not available")
 
-# MAIN THREAD------------------------------------------------------------------------------- ----
+# MAIN THREAD-------------------------------------------------------------------------------
+
+#def main_thread():
 
 # Define Threads
 sensor_data_thread = threading.Thread(target=sensor_worker_thread, args=(SENSOR_REGISTER_ARRAY,))
@@ -513,11 +515,14 @@ serial_thread = threading.Thread(target=receive_serial_data)
 
 
 # ADC ADDRESSES 
-ADS1115_ADDRESS_1 = 0X48    #Check current addr to just read A0 in class file - Gennifer
+ADS1115_ADDRESS_1 = 0X48   
 ADS1115_ADDRESS_2_MICS = 0X49    
 
 # POWER MONITOR ADDRESSES 
-INA228_ADDRESS_1 = 0X40            # CHECK HERE        
+INA228_ADDRESS_1 = 0X40      
+INA228_ADDRESS_2 = 0X41
+INA228_ADDRESS_3 = 0X42         # This can conflict with the PI_UBLOX_GPS Address. Please place on another line. 
+INA228_ADDRESS_4 = 0X43 
 
 # SENSOR I2C ADDRESSES 
 PI_BME280_ADDRESS = 0X77
@@ -566,7 +571,9 @@ PI_ADS1115_JPL_1 = ADS1115_DEVICE(i2c_pi_bus,ADS1115_ADDRESS_1)
 
 # POWER MONITORS 
 INA228_1 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_1)
-
+#INA228_2 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_2)
+#INA228_3 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_3)
+#INA228_4 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_4)
 
 
 while True:
@@ -598,14 +605,17 @@ while True:
             #PI_ADS1115_MICS5524.INIT_ADS1115_CHANNELS()
 
             # Initialize Power monitors
-            INA228_1.INIT_INA228()                         #CHECK HERE 
+            INA228_1.INIT_INA228()            
+            #INA228_2.INIT_INA228()      
+            #INA228_3.INIT_INA228() 
+            #INA228_4.INIT_INA228()            
 
 
             # Check if initialization work 
             if (PI_BME280_Class.BME280_INITIALIZED and PI_MPU9250_Class.MPU9250_INITIALIZED 
             and PI_UBLOX_GPS_Class.GPS_INITIALIZED 
             and PI_ADS1115_JPL_1.CHANNELS_INITIALIZED
-            and PI_SCD30_Class.SCD30_INITIALIZED and INA228_1.INA228_INITIALIZED):   # WIll fix this later
+            and PI_SCD30_Class.SCD30_INITIALIZED and INA228_1.INA228_INITIALIZED):   # Will change this to a wrapper that loops and initializes all devices together. 
                 print("All Devices INITIALIZED")
 
                 # Database Logger
@@ -648,3 +658,6 @@ while True:
             stop_processing_thread = False
             stop_timer_thread = False 
             stop_database_backup_thread = False 
+
+#if __name__ == "__main__": 
+#   main_thread()
