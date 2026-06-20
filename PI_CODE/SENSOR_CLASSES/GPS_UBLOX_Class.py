@@ -1,3 +1,4 @@
+# IMPORTS 
 import adafruit_ublox
 
 class I2C_GPS_UBLOX:
@@ -22,7 +23,7 @@ class I2C_GPS_UBLOX:
             self.init = True
             print("UBLOX GPS INITIALIZED")
 
-        except (ValueError, OSError,RuntimeError) as e:
+        except Exception as e:
             print(f"Error: {e}")
             self.init = False
             print("Error setting up UBLOX GPS")
