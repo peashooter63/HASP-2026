@@ -93,7 +93,7 @@ class MPU9250_I2C_DEVICE:
             self.init = True
             print("MPU9250 Device setup!")
 
-        except (ValueError, OSError) as e:
+        except Exception as e:
             print(f"Error: {e}")
             self.init = False
             print("MPU9250 Device setup failed!")
@@ -111,7 +111,7 @@ class MPU9250_I2C_DEVICE:
                 + ":" + f"{gyroscope_x:.2f}" + ":" + f"{gyroscope_y:.2f}" + ":" + f"{gyroscope_z:.2f}"
                 + ":" + f"{magnetometer_x:.2f}" + ":" + f"{magnetometer_y:.2f}" + ":" + f"{magnetometer_z:.2f}")
             
-            except (ValueError, OSError,RuntimeError) as e:
+            except Exception as e:
                 print(f"Error: {e}")
         else:
             print("MPU9250 data not ready")
