@@ -270,8 +270,8 @@ def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
             
 
             time.sleep(1)
-        except Exception:  #Specify more Exceptions CHECK 
-            print("Reading Devices failed")
+        except Exception as e:  
+            print(f"Reading Devices failed. Error: {e}")
 
 
 def processing_thread():
