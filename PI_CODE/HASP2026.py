@@ -22,15 +22,15 @@ import adafruit_scd30
 import adafruit_sgp30
 
 # Custom Class Imports 
-from BME280_Class import BME280_DATA,BME280_I2C_DEVICE
-from GeigerCounter import GeigerClass
-from MPU9250_Class import MPU9250_DATA, MPU9250_I2C_DEVICE
-from ADS1115_Class import ADS1115_DEVICE
-from INA228_Class import INA228_I2C_DEVICE
+from SENSOR_CLASSES.BME280_Class import BME280_DATA,BME280_I2C_DEVICE
+from SENSOR_CLASSES.GeigerCounter import GeigerClass
+from SENSOR_CLASSES.MPU9250_Class import MPU9250_DATA, MPU9250_I2C_DEVICE
+from SENSOR_CLASSES.ADS1115_Class import ADS1115_DEVICE
+from SENSOR_CLASSES.INA228_Class import INA228_I2C_DEVICE
 from gpsPacket import NMEA_PACKET
 from GPS_COORDINATES_LIVE import Live_GPS_Coordinates
-from GPS_UBLOX_Class import I2C_GPS_UBLOX
-from Environment_Sensors_Class import SCD30_I2C_DEVICE
+from SENSOR_CLASSES.GPS_UBLOX_Class import I2C_GPS_UBLOX
+from SENSOR_CLASSES.Environment_Sensors_Class import SCD30_I2C_DEVICE
 
 
 DATA_QUEUE = queue.Queue(maxsize=50)
@@ -145,13 +145,13 @@ class latest_command:
 
     def __init__(self):
         self.current_command = None
-        self.command_list = (["0x9070","0x916F","0x926E","0x936D","","0x946C",
-                            "0x956B","0x966A","0x9769","0x9967","0x9A66",
-                            "0x9B65", "0x9C64","0x9D63","0x9E62","0x9F61"
+        self.command_list = ([0x9070, 0x916F, 0x926E, 0x936D, 0x946C,
+                              0x956B, 0x966A, 0x9769, 0x9967, 0x9A66,
+                              0x9B65, 0x9C64, 0x9D63, 0x9E62, 0x9F61
                             ])
         
     def set_latest_command(self,command): 
-        if command in self.command_list:
+        if int(command) in self.command_list:
                 self.current_command = command
         else:
             print("Command not in list")
@@ -159,7 +159,9 @@ class latest_command:
     def get_latest_command(self,command):
         return self.current_command
 
-
+#:::::::VAHID::::::: Added the following line to get the latest command
+VAHID_LAST_COMMAND = latest_command()
+#:::::::VAHID:::::::
 
 # Utility Method   -----------------------------
  
@@ -441,7 +443,10 @@ def receive_serial_data():
                 if (command_byte_1 + command_byte_2) == 256:
                     command_byte_join = (command_byte_1 << 8) | command_byte_2
                     print("Match commands")
-                    latest_command.set_latest_command(f"{command_byte_join}") 
+                    #:::::::VAHID::::::: Added the following line to get the latest command
+                    #latest_command.set_latest_command(f"{command_byte_join}") 
+                    VAHID_LAST_COMMAND.set_latest_command(f"{command_byte_join}") 
+                    #:::::::VAHID:::::::
                     match command_byte_join:
                     
 
@@ -663,10 +668,10 @@ while True:
 
 
             # Check if initialization work 
-            if (PI_BME280_Class.BME280_INITIALIZED and PI_MPU9250_Class.MPU9250_INITIALIZED 
-            and PI_UBLOX_GPS_Class.GPS_INITIALIZED 
+            if (PI_BME280_CLASS.BME280_INITIALIZED and PI_MPU9250_CLASS.MPU9250_INITIALIZED 
+            and PI_UBLOX_GPS_CLASS.GPS_INITIALIZED 
             and PI_ADS1115_JPL_1.CHANNELS_INITIALIZED
-            and PI_SCD30_Class.SCD30_INITIALIZED and INA228_1.INA228_INITIALIZED):   # Will change this to a wrapper that loops and initializes all devices together. 
+            and PI_SCD30_CLASS.SCD30_INITIALIZED and INA228_1.INA228_INITIALIZED):   # Will change this to a wrapper that loops and initializes all devices together. 
                 print("All Devices INITIALIZED")
 
                 # Database Logger

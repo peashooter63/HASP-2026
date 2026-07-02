@@ -50,7 +50,9 @@ class BME280_I2C_DEVICE:
         self.i2c = i2c
         self.address = address
         self.bme280 = None
-        self.bme280.sea_level_pressure = None       
+        #:::::::VAHID::::::: Commented the following line
+        #self.bme280.sea_level_pressure = None       
+        #:::::::VAHID:::::::
         self.init = False  
 
     def INIT_BME280(self):

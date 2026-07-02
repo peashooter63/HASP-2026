@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./PI_CODE/S"
+    ]
+}
