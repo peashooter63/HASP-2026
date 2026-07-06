@@ -8,15 +8,14 @@ from datetime import datetime
 i2c = busio.I2C(board.SCL, board.SDA)
 
 # PICO Addresses:
-ADDRESS_1 = 0X2C
-#ADDRESS_2 = ??? 
+ADDRESS_1 = 0X2B
+ADDRESS_2 = 0X2C 
 
 # GEIGER COUNTER Registers 
 REGISTER_1 = 0X01     # GEIGER_1_COUNT_REGISTER 1
 REGISTER_2 = 0X02     # GEIGER_1_DATA_REGISTER  2
 REGISTER_3 = 0X03     # GEIGER_2_COUNT_REGISTER 3
 REGISTER_4 = 0X04     # GEIGER_2_DATA_REGISTER  4
-
 
 REGISTER_10 = 0X0A    # GEIGER_3_COUNT_REGISTER 10
 REGISTER_11 = 0X0B    # GEIGER_3_DATA_REGISTER  11
@@ -119,7 +118,7 @@ class GeigerClass_New:
             try:
                 # Write to REGISTER_2 and obtain how many counts there are by reading data
                 self.i2c.writeto(self.address, bytes([self.queue_register]))  
-                BUFFER = bytearray(4)      
+                BUFFER = bytearray(2)      
                 self.i2c.readfrom_into(self.address,BUFFER)  
                 DECODE_QUEUE_AMOUNT = GeigerClass.DECODE_QUEUE_AMOUNT(BUFFER)
                 return DECODE_QUEUE_AMOUNT
@@ -144,16 +143,16 @@ class GeigerClass_New:
         if self.i2c.try_lock():
             try:
                 for i in range(QUEUE_ITEM_COUNT):   # Loop through the number of counts and read from REGISTER_2 for each count 
-                
                     self.i2c.writeto(self.address, bytes([self.data_register]))
                     buffer2 = bytearray(4)
                     self.i2c.readfrom_into(self.address,buffer2)
                     Geiger_Count_Event = GeigerClass.DECODE_COUNTS(buffer2)
-                    print(f"Geiger Counter 1: iteration {i}   Count: {Geiger_Count_Event}")
+                    #print(f"Geiger Counter {format(self.address, '02X')}:{format(self.queue_register, '02X')} Data:{Geiger_Count_Event}")
                     COUNT_ARRAY[i] = Geiger_Count_Event
                     
-                s = str(COUNT_ARRAY)
-                return s
+                #s = str(COUNT_ARRAY)
+                #return s
+                return COUNT_ARRAY
                     
 
             except Exception as e:

@@ -9,6 +9,8 @@ import os.path
 from pathlib import Path
 import json
 
+#from PI_CODE.SENSOR_CLASSES.DS18_Class import DS18_DATA
+
 # Initialize I2C (using default SCL and SDA pins)
 i2c = busio.I2C(board.SCL, board.SDA)
 
@@ -62,23 +64,29 @@ class MPU9250_DATA: # Later add a data parameter
 
     @staticmethod
     def DECODE_MPU9250_1(data):
-        acceleration_x = struct.unpack_from('<f',data,0)[0]
-        acceleration_y = struct.unpack_from('<f',data,4)[0]
-        acceleration_z = struct.unpack_from('<f',data,8)[0]
-        gyroscope_x = struct.unpack_from('<f',data,12)[0]
-        gyroscope_y = struct.unpack_from('<f',data,16)[0]
-        gyroscope_z = struct.unpack_from('<f',data,20)[0]
-        return (f"{acceleration_x:.2f}" + ":" + f"{acceleration_y:.2f}" + ":" + f"{acceleration_z:.2f}" + ":" + 
-                f"{gyroscope_x:.2f}" + ":" + f"{gyroscope_y:.2f}" + ":" + f"{gyroscope_z:.2f}")
+        yaw = struct.unpack_from('<f',data,0)[0]
+        pitch = struct.unpack_from('<f',data,4)[0]
+        roll = struct.unpack_from('<f',data,8)[0]
+        mag_x = struct.unpack_from('<f',data,12)[0]
+        mag_y = struct.unpack_from('<f',data,16)[0]
+        mag_z = struct.unpack_from('<f',data,20)[0]
+        temperature = struct.unpack_from('<f',data,24)[0]
+        time = int.from_bytes(data[28:32], byteorder='little')
+        return (f"{yaw:.2f}" + ":" + f"{pitch:.2f}" + ":" + f"{roll:.2f}" + ":" + 
+                f"{mag_x:.2f}" + ":" + f"{mag_y:.2f}" + ":" + f"{mag_z:.2f}" + ":" + f"{temperature:.2f}" + ":" + f"{time}")
 
     @staticmethod
     def DECODE_MPU9250_2(data):
-        rotation_x = struct.unpack_from('<f',data,0)[0]
-        rotation_y = struct.unpack_from('<f',data,4)[0]
-        rotation_z = struct.unpack_from('<f',data,8)[0]
-        time       = struct.unpack_from('f',data,12)[0]
-        return f"{rotation_x:.2f}" + ":" + f"{rotation_y:.2f}" + ":" + f"{rotation_z:.2f}" 
-    
+        acceleration_x = struct.unpack_from('<f',data,0)[0]
+        acceleration_y = struct.unpack_from('<f',data,4)[0]
+        acceleration_z = struct.unpack_from('<f',data,8)[0]
+        gyro_x = struct.unpack_from('<f',data,12)[0]
+        gyro_y = struct.unpack_from('<f',data,16)[0]
+        gyro_z = struct.unpack_from('<f',data,20)[0]
+        temperature = struct.unpack_from('<f',data,24)[0]
+        time = int.from_bytes(data[28:32], byteorder='little')
+        return (f"{acceleration_x:.2f}" + ":" + f"{acceleration_y:.2f}" + ":" + f"{acceleration_z:.2f}" + ":" + 
+                f"{gyro_x:.2f}" + ":" + f"{gyro_y:.2f}" + ":" + f"{gyro_z:.2f}" + ":" + f"{temperature:.2f}" + ":" + f"{time}")
 
 class MPU9250_I2C_DEVICE:
     def __init__(self, i2c, address):
@@ -183,3 +191,39 @@ class MPU9250_I2C_DEVICE:
         #     self.calibration_ready = False
     
  
+class PICO_MPU9250_I2C_DEVICE:
+    def __init__(self, i2c, address, register1, register2):
+        self.i2c = i2c
+        self.address = address
+        self.register1 = register1
+        self.register2 = register2
+
+    def READ_MPU9250_DEVICE_1(self):
+        if self.i2c.try_lock():
+            try:
+                self.i2c.writeto(self.address, bytes([self.register1]))
+                buffer = bytearray(32)
+                self.i2c.readfrom_into(self.address,buffer)
+                return MPU9250_DATA.DECODE_MPU9250_1(buffer)
+
+            except Exception as e:
+                print(f"An error occured {e}")
+                return None
+
+            finally:
+                self.i2c.unlock()
+
+    def READ_MPU9250_DEVICE_2(self):
+        if self.i2c.try_lock():
+            try:
+                self.i2c.writeto(self.address, bytes([self.register2]))
+                buffer = bytearray(32)
+                self.i2c.readfrom_into(self.address,buffer)
+                return MPU9250_DATA.DECODE_MPU9250_2(buffer)
+
+            except Exception as e:
+                print(f"An error occured {e}")
+                return None
+
+            finally:
+                self.i2c.unlock()

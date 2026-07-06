@@ -22,20 +22,27 @@ import adafruit_scd30
 import adafruit_sgp30
 
 # Custom Class Imports 
-from SENSOR_CLASSES.BME280_Class import BME280_DATA,BME280_I2C_DEVICE
-from SENSOR_CLASSES.GeigerCounter import GeigerClass
-from SENSOR_CLASSES.MPU9250_Class import MPU9250_DATA, MPU9250_I2C_DEVICE
+from SENSOR_CLASSES.BME280_Class import BME280_DATA, BME280_I2C_DEVICE, PICO_BME280_I2C_DEVICE
+from SENSOR_CLASSES.GeigerCounter import GeigerClass, GeigerClass_New
+from SENSOR_CLASSES.MPU9250_Class import MPU9250_DATA, MPU9250_I2C_DEVICE, PICO_MPU9250_I2C_DEVICE
 from SENSOR_CLASSES.ADS1115_Class import ADS1115_DEVICE
 from SENSOR_CLASSES.INA228_Class import INA228_I2C_DEVICE
 from gpsPacket import NMEA_PACKET
 from GPS_COORDINATES_LIVE import Live_GPS_Coordinates
 from SENSOR_CLASSES.GPS_UBLOX_Class import I2C_GPS_UBLOX
 from SENSOR_CLASSES.Environment_Sensors_Class import SCD30_I2C_DEVICE
-
+from SENSOR_CLASSES.DS18_Class import PICO_DS18_I2C_DEVICE
 
 DATA_QUEUE = queue.Queue(maxsize=50)
 circular_buffer = deque(maxlen=10)
-SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03,0x0A, 0X0C,0X0E, 0x05, 0X06, 0x07,0x08,0x09,0x10,0X11,0x12,0x13,0x14,0x15,0x16])
+
+# For Geiger counters, this arraay only contains the register number of the each Geiger counter count register.
+# In the case statement in the sensor_worker_thread, the register number is used to determine which Geiger counter to read from.
+# The class instance for each Geiger counter contains the data count and the data register numbers.
+# Since we have two PICOs, then for each Geiger counter we read from each PICO
+#                              G1    G2    G3    G4    G5    BME   DS18  MPU1  MPU2  PI_BME PI_MPU PI_GPS JPL_A0 JPL_A1 JPL_A2 JPL_A3 MICS  SCD30 INA228
+SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03, 0x0A, 0X0C, 0X0E, 0x05, 0X07, 0x08, 0x09, 0x10,  0X11,  0x12,  0x13,  0x14,  0x15,  0x16])
+#SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03, 0x0A])
 
 
 PACKET_COUNTER = 0 
@@ -185,102 +192,134 @@ class HASP_STATES:
 
 # Thread methods -----------------------------
 
-def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
+#:::::::VAHID:::::::
+#def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
+#:::::::VAHID:::::::
+def sensor_worker_thread():
     global stop_sensor_data_thread
+    global SENSOR_REGISTER_ARRAY
 
     print("sensor thread running")
-    print("stop sensor data FLAG STATUS:")
-    print(stop_sensor_data_thread)
-
-
-    #print(stop_sensor_data_thread)
+    print(f"stop sensor data thread status: {stop_sensor_data_thread}")
 
     while True:
-
-        if stop_sensor_data_thread:
-            break
-
         try: 
             for REGISTER in SENSOR_REGISTER_ARRAY:
                 print(f"CURRENT REGISTER: {REGISTER}")
-
                 
-                print("MATCH REGISTER VALUE",REGISTER)
                 match REGISTER:
-
                     case 0x01:
-                            queue_count_number = GeigerClass.READ_QUEUE_1()
-                            data = GeigerClass.READ_GEIGER_1(queue_count_number)
-                            DATA_QUEUE.put(f"GEIGER_1,{datetime.now(timezone.utc)},{data}")
+                        #pass
+                        queue_count_number = pico1_geiger_1.READ_QUEUE()
+                        data = pico1_geiger_1.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_1,{datetime.now(timezone.utc)},{item}")
+                        queue_count_number = pico2_geiger_1.READ_QUEUE()
+                        data = pico2_geiger_1.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_6,{datetime.now(timezone.utc)},{item}")
 
                     case 0x03:
-                            pass
-                            #queue_count_number = geiger_2.READ_QUEUE_1()
-                            #data = geiger_2.READ_GEIGER(queue_count_number)
-                            #DATA_QUEUE.put(f"GEIGER_2,{datetime.now(timezone.utc)},{data}")
+                        #pass
+                        queue_count_number = pico1_geiger_2.READ_QUEUE()
+                        data = pico1_geiger_2.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_2,{datetime.now(timezone.utc)},{item}")
+                        queue_count_number = pico2_geiger_2.READ_QUEUE()
+                        data = pico2_geiger_2.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_7,{datetime.now(timezone.utc)},{item}")
 
                     case 0x0A:
-                            pass
-                            #queue_count_number = geiger_3.READ_QUEUE_1()
-                            #data = geiger_3.READ_GEIGER(queue_count_number)
-                            #DATA_QUEUE.put(f"GEIGER_3,{datetime.now(timezone.utc)},{data}")
+                        #pass
+                        queue_count_number = pico1_geiger_3.READ_QUEUE()
+                        data = pico1_geiger_3.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_3,{datetime.now(timezone.utc)},{item}")
+                        queue_count_number = pico2_geiger_3.READ_QUEUE()
+                        data = pico2_geiger_3.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_8,{datetime.now(timezone.utc)},{item}")
 
                     case 0X0C:
-                            pass
-                            #queue_count_number = geiger_4.READ_QUEUE_1()
-                            #data = geiger_4.READ_GEIGER(queue_count_number)
-                            #DATA_QUEUE.put(f"GEIGER_4,{datetime.now(timezone.utc)},{data}")
+                        #pass
+                        queue_count_number = pico1_geiger_4.READ_QUEUE()
+                        data = pico1_geiger_4.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_4,{datetime.now(timezone.utc)},{item}")
+                        queue_count_number = pico2_geiger_4.READ_QUEUE()
+                        data = pico2_geiger_4.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_9,{datetime.now(timezone.utc)},{item}")
 
                     case 0x0E:
-                            pass
-                            #queue_count_number = geiger_5.READ_QUEUE_1()
-                            #data = geiger_5.READ_GEIGER_1(queue_count_number)
-                            #DATA_QUEUE.put(f"GEIGER_5,{datetime.now(timezone.utc)},{data}")
-                        
+                        #pass
+                        queue_count_number = pico1_geiger_5.READ_QUEUE()
+                        data = pico1_geiger_5.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_5,{datetime.now(timezone.utc)},{item}")
+                        queue_count_number = pico2_geiger_5.READ_QUEUE()
+                        data = pico2_geiger_5.READ_GEIGER(queue_count_number)
+                        for item in data:
+                            DATA_QUEUE.put(f"GEIGER_10,{datetime.now(timezone.utc)},{item}")
+
                     case 0x05:
-                            data = BME280_DATA.READ_BME280()
-                            #print("BME DATA TEST!")
-                            #print(data)
-                            DATA_QUEUE.put(f"BME280_1,{datetime.now(timezone.utc)},{data}")
-                            
+                        #pass
+                        data = pico1_BME280.READ_BME280()
+                        DATA_QUEUE.put(f"BME280_1,{datetime.now(timezone.utc)},{data}")
+                        data = pico2_BME280.READ_BME280()
+                        DATA_QUEUE.put(f"BME280_2,{datetime.now(timezone.utc)},{data}")
+
+                    case 0x07:
+                        #pass
+                        data = pico1_DS18.READ_DS18()
+                        DATA_QUEUE.put(f"DS18_1,{datetime.now(timezone.utc)},{data}")
+                        data = pico2_DS18.READ_DS18()
+                        DATA_QUEUE.put(f"DS18_2,{datetime.now(timezone.utc)},{data}")
 
                     case 0x08:
-                            data = MPU9250_DATA.READ_MPU9250_1()
-                            DATA_QUEUE.put(f"MPU9250_1,{datetime.now(timezone.utc)},{data}")
-                            time.sleep(5)
+                        #pass
+                        data = pico1_MPU9250.READ_MPU9250_DEVICE_1()
+                        DATA_QUEUE.put(f"MPU9250_1_1,{datetime.now(timezone.utc)},{data}")
+                        data = pico2_MPU9250.READ_MPU9250_DEVICE_1()
+                        DATA_QUEUE.put(f"MPU9250_2_1,{datetime.now(timezone.utc)},{data}")
 
                     case 0x09:
-                            data = MPU9250_DATA.READ_MPU9250_2()
-                            DATA_QUEUE.put(f"MPU9250_2,{datetime.now(timezone.utc)},{data}")
+                        pass
+                        data = pico1_MPU9250.READ_MPU9250_DEVICE_2()
+                        DATA_QUEUE.put(f"MPU9250_1_2,{datetime.now(timezone.utc)},{data}")
+                        data = pico2_MPU9250.READ_MPU9250_DEVICE_2()
+                        DATA_QUEUE.put(f"MPU9250_2_2,{datetime.now(timezone.utc)},{data}")
 
                     # PI DEVICE READS -------------------------
 
-                    case 0x10:  
-                        data = PI_BME280_Class.READ_BME280_DEVICE()                         
-                        DATA_QUEUE.put(f"PI_BME280,{datetime.now(timezone.utc)},{data}")
+                    case 0x10:
+                        pass
+                        #data = PI_BME280_Class.READ_BME280_DEVICE()                         
+                        #DATA_QUEUE.put(f"PI_BME280,{datetime.now(timezone.utc)},{data}")
 
-                    
-                    case 0x11:                                                              
-                        data = PI_MPU9250_Class.READ_MPU9250_DEVICE()
-                        DATA_QUEUE.put(f"PI_MPU9250,{datetime.now(timezone.utc)},{data}")
-
+                    case 0x11:
+                        pass                                                              
+                        #data = PI_MPU9250_Class.READ_MPU9250_DEVICE()
+                        #DATA_QUEUE.put(f"PI_MPU9250,{datetime.now(timezone.utc)},{data}")
 
                     case 0x12:
-                        GPS_UBLOX_DATA = PI_UBLOX_GPS_Class.GET_GPS_DATA()                  
-                        DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{GPS_UBLOX_DATA}")
+                        pass
+                        #GPS_UBLOX_DATA = PI_UBLOX_GPS_Class.GET_GPS_DATA()                  
+                        #DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{GPS_UBLOX_DATA}")
 
                     case 0x13:
-                        
-                        channel_timestamp = datetime.now(timezone.utc)
-                        data_channel_1 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(0)
-                        data_channel_2 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(1)
-                        data_channel_3 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(2)
-                        data_channel_4 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(3)
+                        pass
+                        #channel_timestamp = datetime.now(timezone.utc)
+                        #data_channel_1 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(0)
+                        #data_channel_2 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(1)
+                        #data_channel_3 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(2)
+                        #data_channel_4 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(3)
 
-                        DATA_QUEUE.put(f"JPL_A0,{channel_timestamp},{data_channel_1}")
-                        DATA_QUEUE.put(f"JPL_A1,{channel_timestamp},{data_channel_2}")
-                        DATA_QUEUE.put(f"JPL_A2,{channel_timestamp},{data_channel_3}")
-                        DATA_QUEUE.put(f"JPL_A3,{channel_timestamp},{data_channel_4}")
+                        #DATA_QUEUE.put(f"JPL_A0,{channel_timestamp},{data_channel_1}")
+                        #DATA_QUEUE.put(f"JPL_A1,{channel_timestamp},{data_channel_2}")
+                        #DATA_QUEUE.put(f"JPL_A2,{channel_timestamp},{data_channel_3}")
+                        #DATA_QUEUE.put(f"JPL_A3,{channel_timestamp},{data_channel_4}")
                          
                     case 0x14:
                         pass
@@ -288,16 +327,20 @@ def sensor_worker_thread(SENSOR_REGISTER_ARRAY):
                         #DATA_QUEUE.put(f"MICS5524_A0,{datetime.now(channel_timestamp)},{data_channel_1}")
 
                     case 0x15:
-                        data = PI_SCD30_Class.READ_SCD30_DATA()
-                        DATA_QUEUE.put(f"SCD30,{datetime.now(timezone.utc)},{data}")
+                        pass
+                        #data = PI_SCD30_Class.READ_SCD30_DATA()
+                        #DATA_QUEUE.put(f"SCD30,{datetime.now(timezone.utc)},{data}")
 
                     case 0x16:
-                        data = INA228_1.READ_INA228()
-                        DATA_QUEUE.put(f"INA228_1,{datetime.now(timezone.utc)},{data}")
+                        pass
+                        #data = INA228_1.READ_INA228()
+                        #DATA_QUEUE.put(f"INA228_1,{datetime.now(timezone.utc)},{data}")
 
-            
+                if stop_sensor_data_thread:
+                    break
 
-            time.sleep(1)
+            time.sleep(5)
+
         except Exception as e:  
             print(f"Reading Devices failed. Error: {e}")
 
@@ -307,13 +350,12 @@ def processing_thread():
     global HaspLogger
     global Hasp_Packet
 
-
     while True:
         if stop_processing_thread:
             break
         
         while not DATA_QUEUE.empty():
-            print("SEnsor thread Loop running")
+            print("Sensor thread Loop running")
             data_string = DATA_QUEUE.get()
             parts = data_string.split(",")
             if len(parts) >= 3:
@@ -364,9 +406,9 @@ def processing_thread():
                 timer_event.clear()
                 Hasp_Packet.commit()
 
-
-
             DATA_QUEUE.task_done()
+
+        time.sleep(5)
 
 def downlink_timer():
 
@@ -400,15 +442,12 @@ def receive_serial_data():
     global stop_serial_thread
     global INTEGRATION_END_FLAG
     command_byte_join = None
-    
 
     while True:
-
         if stop_serial_thread:
             break
 
         if serial_comm.isOpen():
-
             RAW_DATA = serial_comm.readPort()
             print(RAW_DATA)
 
@@ -429,8 +468,6 @@ def receive_serial_data():
                     DATA_QUEUE.put(f"NMEA GPS DATA,{datetime.now(timezone.utc)},{NMEA_STRING}")
                     #Coordinate Display attempt:
                     Live_GPS_Coordinates.GET_POSITION_LIVE(NMEA_STRING)
-                    
-
                 else:
                     print("BAD GPS DATA")
 
@@ -439,7 +476,7 @@ def receive_serial_data():
                 command_byte_1 = RAW_DATA[2]
                 command_byte_2 = RAW_DATA[3]
 
-                    # Build command
+                # Build command
                 if (command_byte_1 + command_byte_2) == 256:
                     command_byte_join = (command_byte_1 << 8) | command_byte_2
                     print("Match commands")
@@ -448,10 +485,7 @@ def receive_serial_data():
                     VAHID_LAST_COMMAND.set_latest_command(f"{command_byte_join}") 
                     #:::::::VAHID:::::::
                     match command_byte_join:
-                    
-
                         case 0x9070:
-                            
                             for i in reversed(range(len((circular_buffer)))):
                                 buffer = bytearray(circular_buffer[i], "utf-8")
                                 print(buffer)
@@ -459,11 +493,12 @@ def receive_serial_data():
                                 DATA_QUEUE.put(f"COMMAND 0X9070,{datetime.now(timezone.utc)},{str(command_byte_join)}")
                     
                         case 0x9769:
-
                             pass
+
+                        # Recalibration command. Recalibrate MPU9250 and SGP30?
                         case 0x916F:
                             pass
-                            # Recalibration command. Recalibrate MPU9250 and SGP30?  
+                        
                         case 0x926E:
                             #if JPL_ARM_FLAG == 1:
                             #    JPL_On.value = 1
@@ -487,6 +522,7 @@ def receive_serial_data():
                                 #DATA_QUEUE.put(f"Arm system before POWER OFF,{datetime.now(timezone.utc)},{str(command_byte_join)}")
                         
                             DATA_QUEUE.put(f"JPL_Power_OFF_STATUS,{datetime.now(timezone.utc)},{str(1)}") 
+
                         case 0x946C:
                             #JPL_arm.value = 1
                             #time.sleep(0.5)
@@ -508,8 +544,8 @@ def receive_serial_data():
 
                         case 0x966A:
                             pass
-                        case 0x9868:
 
+                        case 0x9868:
                             buffer = bytearray(latest_command.get_latest_command().encode("utf-8"))
                             serial_comm.writePort(buffer)
                             DATA_QUEUE.put(f"COMMAND 0X9868,{datetime.now(timezone.utc)},{str(command_byte_join)}")
@@ -522,16 +558,21 @@ def receive_serial_data():
         else:
             print("Serial Port not available")
 
+        time.sleep(1)
+
 # MAIN THREAD-------------------------------------------------------------------------------
 
 #def main_thread():
 
 # Define Threads
-sensor_data_thread = threading.Thread(target=sensor_worker_thread, args=(SENSOR_REGISTER_ARRAY,))
-data_process_thread = threading.Thread(target=processing_thread)
-timer_thread = threading.Thread(target=downlink_timer)
-database_backup_timer_thread = threading.Thread(target=backup_data_timer)
-serial_thread = threading.Thread(target=receive_serial_data)
+#:::::::VAHID:::::::
+#sensor_data_thread = threading.Thread(target=sensor_worker_thread, args=(SENSOR_REGISTER_ARRAY,))
+#:::::::VAHID:::::::
+sensor_data_thread = threading.Thread(target=sensor_worker_thread, args=())
+data_process_thread = threading.Thread(target=processing_thread, args=())
+timer_thread = threading.Thread(target=downlink_timer, args=())
+database_backup_timer_thread = threading.Thread(target=backup_data_timer, args=())
+serial_thread = threading.Thread(target=receive_serial_data, args=())
 
 
 # Mapped to GPIO pins
@@ -556,19 +597,17 @@ INA228_ADDRESS_3 = 0X42         # This can conflict with the PI_UBLOX_GPS Addres
 INA228_ADDRESS_4 = 0X43 
 
 # SENSOR I2C ADDRESSES 
-PI_BME280_ADDRESS = 0X77
+PI_BME280_ADDRESS = 0X76
 PI_MPU9250_ADDRESS = 0X68
 PI_UBLOX_GPS_ADDRESS = 0X42
 PI_SCD30_ADDRESS = 0X61     # NDIR CO2 Temperature and Humidity 
 PI_SGP30 = 0X58             # Air Quality Sensor (Monitor Air QUality)
 
-# GEIGER COUNTER REGISTERS 
-
+# GEIGER COUNTER REGISTERS On THE PICO
 REGISTER_1 = 0X01     # GEIGER_1_COUNT_REGISTER 1
 REGISTER_2 = 0X02     # GEIGER_1_DATA_REGISTER  2
 REGISTER_3 = 0X03     # GEIGER_2_COUNT_REGISTER 3
 REGISTER_4 = 0X04     # GEIGER_2_DATA_REGISTER  4
-
 REGISTER_10 = 0X0A    # GEIGER_3_COUNT_REGISTER 10
 REGISTER_11 = 0X0B    # GEIGER_3_DATA_REGISTER  11
 REGISTER_12 = 0X0C    # GEIGER_4_COUNT_REGISTER 12
@@ -576,14 +615,23 @@ REGISTER_13 = 0X0D    # GEIGER_4_DATA_REGISTER  13
 REGISTER_14 = 0X0E    # GEIGER_5_COUNT_REGISTER 14
 REGISTER_15 = 0X0F    # GEIGER_5_DATA_REGISTER  15
 
+#BME280 REGISTER ON THE PICO
+REGISTER_5 = 0X05     # BME280_REGISTER 5
+
+#DS18 REGISTER ON THE PICO
+REGISTER_7 = 0X07     # DS18_REGISTER 7
+
+#MPU9250 REGISTER ON THE PICO
+REGISTER_8 = 0X08     # MPU9250_REGISTER 8
+REGISTER_9 = 0X09     # MPU9250_REGISTER 9
+
 # PICO ADDRESSES 
-PICO_1_ADDR = 0X2C 
-#PICO_2_ADDR = 0XAB         # Change out 
+PICO_1_ADDR = 0X2B
+PICO_2_ADDR = 0X2C
 
 # I2C BUS 
 i2c = busio.I2C(board.SCL, board.SDA)
 i2c_pi_bus = I2C(3)
-
 
 # JPL FLAGS 
 JPL_ARM_FLAG = 0
@@ -602,8 +650,15 @@ stop_processing_thread = False
 timer_event = threading.Event()
 database_timer_event = threading.Event()
 INTEGRATION_END_FLAG = 0
-SET_STATE = state_machine.transition("INTEGRATION")
-serial_thread.start() 
+
+#:::::::VAHID:::::::
+#SET_STATE = state_machine.transition("INTEGRATION")
+#:::::::VAHID:::::::
+SET_STATE = state_machine.transition("INIT")
+
+#:::::::VAHID:::::::
+#serial_thread.start() 
+#:::::::VAHID:::::::
 
 # CLASS INSTANCES 
 
@@ -625,23 +680,33 @@ INA228_1 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_1)
 #INA228_4 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_4)
 
 # GEIGER COUNTERS 
-# geiger_1 = GeigerClass(i2c,PICO_1_ADDR, REGISTER_1, REGISTER_2)
-# geiger_2 = GeigerClass(i2c, PICO_1_ADDR, REGISTER_3, REGISTER_4)
-# geiger_3 = GeigerClass(i2c, PICO_1_ADDR, REGISTER_10, REGISTER_11)
-# geiger_4 = GeigerClass(i2c, PICO_1_ADDR, REGISTER_12, REGISTER_13)
-# geiger_5 = GeigerClass(i2c, PICO_1_ADDR, REGISTER_14, REGISTER_15)
+pico1_geiger_1 = GeigerClass_New(i2c, PICO_1_ADDR, REGISTER_1,  REGISTER_2)
+pico1_geiger_2 = GeigerClass_New(i2c, PICO_1_ADDR, REGISTER_3,  REGISTER_4)
+pico1_geiger_3 = GeigerClass_New(i2c, PICO_1_ADDR, REGISTER_10, REGISTER_11)
+pico1_geiger_4 = GeigerClass_New(i2c, PICO_1_ADDR, REGISTER_12, REGISTER_13)
+pico1_geiger_5 = GeigerClass_New(i2c, PICO_1_ADDR, REGISTER_14, REGISTER_15)
 
+pico2_geiger_1 = GeigerClass_New(i2c, PICO_2_ADDR, REGISTER_1,  REGISTER_2)
+pico2_geiger_2 = GeigerClass_New(i2c, PICO_2_ADDR, REGISTER_3,  REGISTER_4)
+pico2_geiger_3 = GeigerClass_New(i2c, PICO_2_ADDR, REGISTER_10, REGISTER_11)
+pico2_geiger_4 = GeigerClass_New(i2c, PICO_2_ADDR, REGISTER_12, REGISTER_13)
+pico2_geiger_5 = GeigerClass_New(i2c, PICO_2_ADDR, REGISTER_14, REGISTER_15)
+
+pico1_BME280 = PICO_BME280_I2C_DEVICE(i2c, PICO_1_ADDR, REGISTER_5)
+pico2_BME280 = PICO_BME280_I2C_DEVICE(i2c, PICO_2_ADDR, REGISTER_5)
+
+pico1_DS18 = PICO_DS18_I2C_DEVICE(i2c, PICO_1_ADDR, REGISTER_7)
+pico2_DS18 = PICO_DS18_I2C_DEVICE(i2c, PICO_2_ADDR, REGISTER_7)
+
+pico1_MPU9250 = PICO_MPU9250_I2C_DEVICE(i2c, PICO_1_ADDR, REGISTER_8, REGISTER_9)
+pico2_MPU9250 = PICO_MPU9250_I2C_DEVICE(i2c, PICO_2_ADDR, REGISTER_8, REGISTER_9)
 
 while True:
     
     CURRENT_STATE = state_machine.current_state 
 
-
     match CURRENT_STATE:
-
         case "INTEGRATION":
-            
-
             if INTEGRATION_END_FLAG == 1:
                 SET_STATE = state_machine.transition("INIT")
 
@@ -668,10 +733,10 @@ while True:
 
 
             # Check if initialization work 
-            if (PI_BME280_CLASS.BME280_INITIALIZED and PI_MPU9250_CLASS.MPU9250_INITIALIZED 
-            and PI_UBLOX_GPS_CLASS.GPS_INITIALIZED 
+            if (PI_BME280_Class.BME280_INITIALIZED and PI_MPU9250_Class.MPU9250_INITIALIZED 
+            and PI_UBLOX_GPS_Class.GPS_INITIALIZED 
             and PI_ADS1115_JPL_1.CHANNELS_INITIALIZED
-            and PI_SCD30_CLASS.SCD30_INITIALIZED and INA228_1.INA228_INITIALIZED):   # Will change this to a wrapper that loops and initializes all devices together. 
+            and PI_SCD30_Class.SCD30_INITIALIZED and INA228_1.INA228_INITIALIZED):   # Will change this to a wrapper that loops and initializes all devices together. 
                 print("All Devices INITIALIZED")
 
                 # Database Logger
@@ -696,13 +761,15 @@ while True:
 
                 Hasp_Packet.commit()
 
-
                 sensor_data_thread.start()
+                #:::::::VAHID:::::::
                 data_process_thread.start()
-                timer_thread.start()
-                database_backup_timer_thread.start()
-
-                
+                #:::::::VAHID:::::::
+                #timer_thread.start()
+                #:::::::VAHID:::::::
+                #database_backup_timer_thread.start()
+                #:::::::VAHID:::::::
+               
                 SET_STATE = state_machine.transition("RUNNING")
     
             else:
