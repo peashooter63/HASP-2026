@@ -33,7 +33,7 @@ class SCD30_I2C_DEVICE:
     def READ_SCD30_DATA(self):
         if self.init:
             if self.scd30.data_available:
-                data = f"{self.scd30.CO2:.2f}" + ":" + f"{self.scd30.temperature:.2f}" + ":" + f"{self.scd30.relative_humidity:2f}"
+                data = f"{self.scd30.CO2:.2f}" + ":" + f"{self.scd30.temperature:.2f}" + ":" + f"{self.scd30.relative_humidity:.2f}"
                 return data
     
                 

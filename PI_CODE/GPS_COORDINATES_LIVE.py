@@ -29,7 +29,7 @@ class Live_GPS_Coordinates:
         elif NMEA_FIELDS[3] == "W":
             DEG_LONG =  (DEG_WHOLE + DEG_DEC)
         
-        print("LOngitude")
+        print("Longitude")
         print(DEG_LONG)
 
         print("Latitude")

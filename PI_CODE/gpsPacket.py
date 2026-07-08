@@ -21,7 +21,8 @@ class NMEA_PACKET:
 
                 if "W" in NMEA_FIELDS:
                     WEST_INDEX = NMEA_FIELDS.index("W")
-                    Longitude = "-" + f"{NMEA_FIELDS[WEST_INDEX-1]}"
+                    #Longitude = "-" + f"{NMEA_FIELDS[WEST_INDEX-1]}"
+                    Longitude = f"{NMEA_FIELDS[WEST_INDEX-1]}"
                     LONGITUDE_DIR = NMEA_FIELDS[WEST_INDEX]
                 else:
                     EAST_INDEX = NMEA_FIELDS.index("E")
