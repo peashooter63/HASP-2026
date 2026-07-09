@@ -323,11 +323,10 @@ def sensor_worker_thread():
                         DATA_QUEUE.put(f"JPL_A3,{channel_timestamp},{data_channel_4}")
                          
                     case 0x14:
-                        pass
-                        #:::::::VAHID:::::::
-                        #data_channel_1 = PI_ADS1115_MICS5524.READ_ADS1115_CHANNELS(0)
-                        #DATA_QUEUE.put(f"MICS5524_A0,{datetime.now(channel_timestamp)},{data_channel_1}")
-                        #:::::::VAHID:::::::
+                        #pass
+                        channel_timestamp = datetime.now(timezone.utc)
+                        data_channel_1 = PI_ADS1115_MICS5524.READ_ADS1115_CHANNELS(0)
+                        DATA_QUEUE.put(f"MICS5524_A0,{channel_timestamp},{data_channel_1}")
 
                     case 0x15:
                         #pass
