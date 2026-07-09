@@ -119,7 +119,7 @@ class Latest_Data:
 # Build CESARS Packet -----------------------------
 
     def get_packet_data(self):
-        with self._lock:
+        #with self._lock:
             global PACKET_COUNTER 
             PACKET_COUNTER += 1
             timestamp = datetime.now(timezone.utc)
@@ -145,7 +145,7 @@ class Latest_Data:
                 + "," + f"{packet_checksum}" + "," + f"{ending_character}"
             )
 
-            update_latest_packets()
+            #update_latest_packets()    This line causes exception
             return CESARS_PACKET
         
 
@@ -405,7 +405,7 @@ def processing_thread():
                 if serial_comm.isOpen():
                     serial_comm.writePort(uart_buffer)
 
-                with sql.connect("Hasp_Packet.db") as Hasp_Packet:
+                with sql.connect(_HaspPacketDatabase_Name) as Hasp_Packet:
                     cursor = Hasp_Packet.cursor()
                     cursor.execute(
                         "INSERT INTO HASP_Table_PACKET (SensorID, PACKET, TIME) VALUES (?, ?, ?)",
@@ -428,8 +428,8 @@ def downlink_timer():
         if stop_timer_thread:
             break
 
-        time.sleep(30)
         timer_event.set()
+        time.sleep(30)
 
 def backup_data_timer():
 
@@ -444,8 +444,6 @@ def backup_data_timer():
         time.sleep(30)
 
         database_timer_event.set()
-
-
 
 def receive_serial_data():
     global stop_serial_thread
@@ -514,11 +512,6 @@ def receive_serial_data():
                             pass
                         
                         case 0x926E:
-                            #if JPL_ARM_FLAG == 1:
-                            #    JPL_On.value = 1
-                            #    time.sleep(0.5)
-                            #    JPL_On.value = 0 
-                            #    JPL_On_FLAG = 1 
                             if JPL_ARM_FLAG == 1 and JPL_ON_FLAG == 0:
                                 JPL_ON.value = True
                                 time.sleep(0.5)
@@ -527,16 +520,8 @@ def receive_serial_data():
                                 JPL_ON_FLAG = 1
                             else:
                                 pass
-                            #DATA_QUEUE.put(f"JPL_ON,{datetime.now(timezone.utc)},{str(1)}")    
-
-                            #else:  
-                            #    DATA_QUEUE.put(f"The System is not armed,{datetime.now(timezone.utc)},{str(command_byte_join)}")
 
                         case 0x936D:
-                            #if JPL_ARM_FLAG == 1:
-                                #JPL_Off.value = 1
-                                #time.sleep(0.5)
-                                #JPL_Off.value = 0 
                             if JPL_ON_FLAG == 1:
                                 JPL_OFF.value = True
                                 time.sleep(0.5)
@@ -545,17 +530,8 @@ def receive_serial_data():
                                 JPL_ON_FLAG = 0
                             else:
                                 pass
-                            #DATA_QUEUE.put(f"JPL Power OFF,{datetime.now(timezone.utc)},{str(command_byte_join)}")
-
-                            #else:
-                                #DATA_QUEUE.put(f"Arm system before POWER OFF,{datetime.now(timezone.utc)},{str(command_byte_join)}")
-                            #DATA_QUEUE.put(f"JPL_Power_OFF_STATUS,{datetime.now(timezone.utc)},{str(1)}") 
 
                         case 0x946C:
-                            #JPL_arm.value = 1
-                            #time.sleep(0.5)
-                            #JPL_arm.value = 0 
-                            #JPL_ARM_FLAG = 1 
                             if JPL_ARM_FLAG == 0:
                                 JPL_ARM.value = True
                                 time.sleep(0.5)
@@ -564,15 +540,8 @@ def receive_serial_data():
                                 JPL_ARM_FLAG = 1
                             else:
                                 pass
-                            #DATA_QUEUE.put(f"System armed,{datetime.now(timezone.utc)},{str(command_byte_join)}")
-                            #DATA_QUEUE.put(f"JPL_ARM,{datetime.now(timezone.utc)},{str(1)}")     #Put a flag in the str()
                                
                         case 0x956B:
-                            #if JPL_ARM_FLAG == 1:
-                            #    JPL_ARM_FLAG = 0
-                            #    JPL_disarm.value = 1 
-                            #    time.sleep(0.5)
-                            #    JPL_disarm.value = 0 
                             if JPL_ARM_FLAG == 1:
                                 JPL_DISARM.value = True
                                 time.sleep(0.5)
@@ -581,10 +550,6 @@ def receive_serial_data():
                                 JPL_ARM_FLAG = 0
                             else:
                                 pass
-                            #DATA_QUEUE.put(f"System disarmed,{datetime.now(timezone.utc)},{str(command_byte_join)}")
-
-                            #else:
-                            #    DATA_QUEUE.put(f"Arm system before disarm,{datetime.now(timezone.utc)},{str(command_byte_join)}")
 
                         case 0x966A:
                             pass
@@ -715,7 +680,7 @@ PI_SCD30_Class = SCD30_I2C_DEVICE(i2c_pi_bus,PI_SCD30_ADDRESS)
 
 # ANALOG 
 PI_ADS1115_JPL_1 = ADS1115_DEVICE(i2c_pi_bus,ADS1115_ADDRESS_1)              
-#PI_ADS1115_MICS5524 = ADS1115_DEVICE(i2c_pi_bus,ADS1115_ADDRESS_2_MICS)
+PI_ADS1115_MICS5524 = ADS1115_DEVICE(i2c_pi_bus,ADS1115_ADDRESS_2_MICS)
 
 # POWER MONITORS 
 INA228_1 = INA228_I2C_DEVICE(i2c_pi_bus,INA228_ADDRESS_1)
@@ -747,6 +712,7 @@ pico2_MPU9250 = PICO_MPU9250_I2C_DEVICE(i2c, PICO_2_ADDR, REGISTER_8, REGISTER_9
 
 timestamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
 _HaspLoggerDatabase_Name = f"HaspLogger_{timestamp}.db"
+_HaspPacketDatabase_Name = f"HaspPacket_{timestamp}.db"
 
 while True:
     
@@ -769,7 +735,7 @@ while True:
 
             # Initialize Channels 
             PI_ADS1115_JPL_1.INIT_ADS1115_CHANNELS()        
-            #PI_ADS1115_MICS5524.INIT_ADS1115_CHANNELS()
+            PI_ADS1115_MICS5524.INIT_ADS1115_CHANNELS()
 
             # Initialize Power monitors
             INA228_1.INIT_INA228()            
@@ -796,7 +762,7 @@ while True:
                 HaspLogger.commit()
 
                 # Downlink Logger
-                with sql.connect("Hasp_Packet.db") as Hasp_Packet:
+                with sql.connect(_HaspPacketDatabase_Name) as Hasp_Packet:
                     cursor = Hasp_Packet.cursor()
                     cursor.execute("DROP TABLE IF EXISTS HASP_Table_PACKET")
 
@@ -810,7 +776,7 @@ while True:
                 #:::::::VAHID:::::::
                 data_process_thread.start()
                 #:::::::VAHID:::::::
-                #timer_thread.start()
+                timer_thread.start()
                 #:::::::VAHID:::::::
                 #database_backup_timer_thread.start()
                 #:::::::VAHID:::::::
