@@ -9,19 +9,32 @@ class I2C_GPS_UBLOX:
         self.ddc = None
         self.ubx = None
         self.gps = None
-        self.init = False  
+        self.init = False
+        self.debug_ubx = False  # Set to True to print raw UBX messages to the console  
 
 
     def INIT_GPS(self):
         try:
-            self.ddc = adafruit_ublox.UBloxDDC(self.i2c,address=self.address)
+            self.ddc = adafruit_ublox.UBloxDDC(self.i2c)
+            #self.ddc = adafruit_ublox.UBloxDDC(self.i2c,address=self.address)
+
+            self.ubx = adafruit_ublox.UBloxUBX(self.ddc, debug=self.debug_ubx)
+
             self.gps = adafruit_ublox.GPS_UBloxI2C(self.ddc)
-            self.gps.update()
+
+            self.ubx.set_nmea_output({adafruit_ublox.NMEA_GGA, adafruit_ublox.NMEA_RMC})
+
+            self.ubx.set_update_rate(1)
+
+
+
+
+            #self.gps.update()
             #self.gps.set_nmea_output({adafruit_ublox.NMEA_GGA, adafruit_ublox.NMEA_RMC})
-            print("Try to set 1 Hz update rate..")
+            #print("Try to set 1 Hz update rate..")
             #self.gps.set_update_rate(1)
             self.init = True
-            print("UBLOX GPS INITIALIZED")
+            #print("UBLOX GPS INITIALIZED")
 
         except Exception as e:
             print(f"Error: {e}")
@@ -31,7 +44,7 @@ class I2C_GPS_UBLOX:
 
 
     def GET_GPS_DATA(self):
-        self.gps.update()
+        #self.gps.update()
         if self.init:
             self.gps.update()
             if not self.gps.has_fix:

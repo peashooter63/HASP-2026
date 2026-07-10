@@ -32,6 +32,7 @@ from GPS_COORDINATES_LIVE import Live_GPS_Coordinates
 from SENSOR_CLASSES.GPS_UBLOX_Class import I2C_GPS_UBLOX
 from SENSOR_CLASSES.Environment_Sensors_Class import SCD30_I2C_DEVICE
 from SENSOR_CLASSES.DS18_Class import PICO_DS18_I2C_DEVICE
+from gps2 import GPS_UBLOX
 
 DATA_QUEUE = queue.Queue(maxsize=50)
 circular_buffer = deque(maxlen=10)
@@ -306,8 +307,10 @@ def sensor_worker_thread():
 
                     case 0x12:
                         #pass
-                        GPS_UBLOX_DATA = PI_UBLOX_GPS_Class.GET_GPS_DATA()                  
-                        DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{GPS_UBLOX_DATA}")
+                        gps_data = _gps.get_gps_data()
+                        DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{gps_data}")
+                        #GPS_UBLOX_DATA = PI_UBLOX_GPS_Class.GET_GPS_DATA()                  
+                        #DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{GPS_UBLOX_DATA}")
 
                     case 0x13:
                         #pass
@@ -713,6 +716,8 @@ timestamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
 _HaspLoggerDatabase_Name = f"HaspLogger_{timestamp}.db"
 _HaspPacketDatabase_Name = f"HaspPacket_{timestamp}.db"
 
+_gps = GPS_UBLOX(i2c_pi_bus)
+
 while True:
     
     CURRENT_STATE = state_machine.current_state 
@@ -779,6 +784,8 @@ while True:
                 #:::::::VAHID:::::::
                 #database_backup_timer_thread.start()
                 #:::::::VAHID:::::::
+
+                _gps.start_gps_thread()  # Start GPS thread to read GPS data
 
                 # Initialize GPIO pins using digitalio
                 JPL_ARM              = digitalio.DigitalInOut(board.D16)
