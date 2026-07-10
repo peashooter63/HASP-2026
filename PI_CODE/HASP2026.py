@@ -29,7 +29,7 @@ from SENSOR_CLASSES.ADS1115_Class import ADS1115_DEVICE
 from SENSOR_CLASSES.INA228_Class import INA228_I2C_DEVICE
 from gpsPacket import NMEA_PACKET
 from GPS_COORDINATES_LIVE import Live_GPS_Coordinates
-from SENSOR_CLASSES.GPS_UBLOX_Class import I2C_GPS_UBLOX
+#from SENSOR_CLASSES.GPS_UBLOX_Class import I2C_GPS_UBLOX
 from SENSOR_CLASSES.Environment_Sensors_Class import SCD30_I2C_DEVICE
 from SENSOR_CLASSES.DS18_Class import PICO_DS18_I2C_DEVICE
 from gps2 import GPS_UBLOX
@@ -128,8 +128,8 @@ class Latest_Data:
             packet_checksum = 0 
 
             BUILD_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}"  + ","+ f"{timestamp}" +  
-                           "," f"{self.JPL_ON}" + ":" + f"{self.JPL_ARM}" + ":" + f"{self.JPL_A0}" + ":"
-                + f"{self.JPL_A1}"+ ":" + f"{self.JPL_A2}" + ":" + f"{self.JPL_A3}" + ":" 
+                           "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":" + f"{JPL_DATA_CHANNEL_0}" + ":"
+                + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":" 
                 + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":" + f"{self.PI_UBLOX_GPS}"
                 + "," + f"{packet_checksum}" + "," + f"{ending_character}"
             )
@@ -140,8 +140,8 @@ class Latest_Data:
 
             
             CESARS_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}" + "," + f"{packet_payload_length}" + ","+ f"{timestamp}" +  
-                           "," f"{self.JPL_ON}" + ":" + f"{self.JPL_ARM}" + ":" + f"{self.JPL_A0}" + ":"
-                + f"{self.JPL_A1}"+ ":" + f"{self.JPL_A2}" + ":" + f"{self.JPL_A3}" + ":" 
+                           "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":" + f"{JPL_DATA_CHANNEL_0}" + ":"
+                + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":" 
                 + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":" + f"{self.PI_UBLOX_GPS}"
                 + "," + f"{packet_checksum}" + "," + f"{ending_character}"
             )
@@ -200,6 +200,10 @@ class HASP_STATES:
 def sensor_worker_thread():
     global stop_sensor_data_thread
     global SENSOR_REGISTER_ARRAY
+    global JPL_DATA_CHANNEL_0
+    global JPL_DATA_CHANNEL_1
+    global JPL_DATA_CHANNEL_2
+    global JPL_DATA_CHANNEL_3
 
     print("sensor thread running")
     print(f"stop sensor data thread status: {stop_sensor_data_thread}")
@@ -306,9 +310,9 @@ def sensor_worker_thread():
                         DATA_QUEUE.put(f"PI_MPU9250,{datetime.now(timezone.utc)},{data}")
 
                     case 0x12:
-                        #pass
-                        gps_data = _gps.get_gps_data()
-                        DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{gps_data}")
+                        pass
+                        #gps_data = _gps.get_gps_data()
+                        #DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{gps_data}")
                         #GPS_UBLOX_DATA = PI_UBLOX_GPS_Class.GET_GPS_DATA()                  
                         #DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{GPS_UBLOX_DATA}")
 
@@ -319,6 +323,11 @@ def sensor_worker_thread():
                         data_channel_2 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(1)
                         data_channel_3 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(2)
                         data_channel_4 = PI_ADS1115_JPL_1.READ_ADS1115_CHANNELS(3)
+
+                        JPL_DATA_CHANNEL_0 = data_channel_1
+                        JPL_DATA_CHANNEL_1 = data_channel_2
+                        JPL_DATA_CHANNEL_2 = data_channel_3
+                        JPL_DATA_CHANNEL_3 = data_channel_4
 
                         DATA_QUEUE.put(f"JPL_A0,{channel_timestamp},{data_channel_1}")
                         DATA_QUEUE.put(f"JPL_A1,{channel_timestamp},{data_channel_2}")
@@ -647,6 +656,10 @@ i2c_pi_bus = I2C(3)
 # JPL FLAGS 
 JPL_ARM_FLAG = 0        # 0 = Disarmed, 1 = Armed
 JPL_ON_FLAG = 0         # 0 = OFF, 1 = ON
+JPL_DATA_CHANNEL_0 = "0: 0"
+JPL_DATA_CHANNEL_1 = "0: 0"
+JPL_DATA_CHANNEL_2 = "0: 0"
+JPL_DATA_CHANNEL_3 = "0: 0"
 
 # Thread class instances 
 state_machine = HASP_STATES()
@@ -676,7 +689,7 @@ serial_thread.start()
 # SENSORS I2C 
 PI_BME280_Class = BME280_I2C_DEVICE(i2c_pi_bus,PI_BME280_ADDRESS)
 PI_MPU9250_Class = MPU9250_I2C_DEVICE(i2c_pi_bus,PI_MPU9250_ADDRESS)
-PI_UBLOX_GPS_Class = I2C_GPS_UBLOX(i2c_pi_bus,PI_UBLOX_GPS_ADDRESS)     
+#PI_UBLOX_GPS_Class = I2C_GPS_UBLOX(i2c_pi_bus,PI_UBLOX_GPS_ADDRESS)     
 PI_SCD30_Class = SCD30_I2C_DEVICE(i2c_pi_bus,PI_SCD30_ADDRESS)
 #PI_SGP30_Class = 
 
@@ -716,7 +729,7 @@ timestamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
 _HaspLoggerDatabase_Name = f"HaspLogger_{timestamp}.db"
 _HaspPacketDatabase_Name = f"HaspPacket_{timestamp}.db"
 
-_gps = GPS_UBLOX(i2c_pi_bus)
+#_gps = GPS_UBLOX(i2c_pi_bus)
 
 while True:
     
@@ -734,7 +747,7 @@ while True:
             # Initialize devices 
             PI_MPU9250_Class.SETUP_MPU9250()
             PI_BME280_Class.INIT_BME280()
-            PI_UBLOX_GPS_Class.INIT_GPS()  
+            #PI_UBLOX_GPS_Class.INIT_GPS()  
             PI_SCD30_Class.INIT_SCD30()
 
             # Initialize Channels 
@@ -749,7 +762,7 @@ while True:
 
             # Check if initialization work 
             if (PI_BME280_Class.BME280_INITIALIZED and PI_MPU9250_Class.MPU9250_INITIALIZED 
-            and PI_UBLOX_GPS_Class.GPS_INITIALIZED 
+            #and PI_UBLOX_GPS_Class.GPS_INITIALIZED 
             and PI_ADS1115_JPL_1.CHANNELS_INITIALIZED
             and PI_SCD30_Class.SCD30_INITIALIZED and INA228_1.INA228_INITIALIZED):   # Will change this to a wrapper that loops and initializes all devices together. 
                 print("All Devices INITIALIZED")
@@ -785,7 +798,7 @@ while True:
                 #database_backup_timer_thread.start()
                 #:::::::VAHID:::::::
 
-                _gps.start_gps_thread()  # Start GPS thread to read GPS data
+                #_gps.start_gps_thread()  # Start GPS thread to read GPS data
 
                 # Initialize GPIO pins using digitalio
                 JPL_ARM              = digitalio.DigitalInOut(board.D16)
