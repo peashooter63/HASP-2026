@@ -29,10 +29,11 @@ from SENSOR_CLASSES.ADS1115_Class import ADS1115_DEVICE
 from SENSOR_CLASSES.INA228_Class import INA228_I2C_DEVICE
 from gpsPacket import NMEA_PACKET
 from GPS_COORDINATES_LIVE import Live_GPS_Coordinates
-#from SENSOR_CLASSES.GPS_UBLOX_Class import I2C_GPS_UBLOX
+from SENSOR_CLASSES.GPS_UBLOX_Class import I2C_GPS_UBLOX
 from SENSOR_CLASSES.Environment_Sensors_Class import SCD30_I2C_DEVICE
 from SENSOR_CLASSES.DS18_Class import PICO_DS18_I2C_DEVICE
-from gps2 import GPS_UBLOX
+from SENSOR_CLASSES.PICO_Time_Class import PICO_TIME
+#from gps2 import GPS_UBLOX
 
 DATA_QUEUE = queue.Queue(maxsize=50)
 circular_buffer = deque(maxlen=10)
@@ -42,9 +43,8 @@ circular_buffer = deque(maxlen=10)
 # The class instance for each Geiger counter contains the data count and the data register numbers.
 # Since we have two PICOs, then for each Geiger counter we read from each PICO
 #                              G1    G2    G3    G4    G5    BME   DS18  MPU1  MPU2  PI_BME PI_MPU PI_GPS JPL_A0 JPL_A1 JPL_A2 JPL_A3 MICS  SCD30 INA228
-SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03, 0x0A, 0X0C, 0X0E, 0x05, 0X07, 0x08, 0x09, 0x10,  0X11,  0x12,  0x13,  0x14,  0x15,  0x16])
+SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03, 0x0A, 0X0C, 0X0E, 0x05, 0X07, 0x08, 0x09, 0x10,  0X11,  0x12,  0x13,  0x14,  0x15,  0x16, 0x17])
 #SENSOR_REGISTER_ARRAY = bytes([0x01, 0x03, 0x0A])
-
 
 PACKET_COUNTER = 0 
 #i2c_lock = threading.Lock()
@@ -116,7 +116,6 @@ class Latest_Data:
             if sensor_ID in sensor_id_list:
                 setattr(self,sensor_ID,current_data)
 
-
 # Build CESARS Packet -----------------------------
 
     def get_packet_data(self):
@@ -127,10 +126,18 @@ class Latest_Data:
             ending_character = "\r\n"
             packet_checksum = 0 
 
+            cpu_temperature = os.popen("vcgencmd measure_temp").readline().rstrip("\r\n").strip("'C").strip()
+            system_input_voltage = os.popen("vcgencmd pmic_read_adc EXT5V_V").readline().rstrip("\r\n").strip("'").strip()
+            cpu_ram_voltage = os.popen("vcgencmd measure_volts core").readline().rstrip("\r\n").strip("'").strip()
+            rtc_battery_voltage = os.popen("vcgencmd pmic_read_adc BATT_V").readline().rstrip("\r\n").strip("'").strip()
+
             BUILD_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}"  + ","+ f"{timestamp}" +  
                            "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":" + f"{JPL_DATA_CHANNEL_0}" + ":"
-                + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":" 
+                + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":"
+                + f"{GEIGER_01_COUNT}" + ":" + f"{GEIGER_02_COUNT}" + ":" + f"{GEIGER_03_COUNT}" + ":" + f"{GEIGER_04_COUNT}" + ":" + f"{GEIGER_05_COUNT}" + ":"
+                + f"{GEIGER_06_COUNT}" + ":" + f"{GEIGER_07_COUNT}" + ":" + f"{GEIGER_08_COUNT}" + ":" + f"{GEIGER_09_COUNT}" + ":" + f"{GEIGER_10_COUNT}" + ":"
                 + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":" + f"{self.PI_UBLOX_GPS}"
+                + f"," + f"{cpu_temperature}" + "," + f"{system_input_voltage}" + "," + f"{cpu_ram_voltage}" + "," + f"{rtc_battery_voltage}"  
                 + "," + f"{packet_checksum}" + "," + f"{ending_character}"
             )
 
@@ -138,11 +145,13 @@ class Latest_Data:
             packet_payload_length = len(packet_payload_bytes)
             #CESARS_Packet = (f"C,E,{packet_payload_length},{BUILD_PACKET},CHECKSUM,{ending_character}")   
 
-            
             CESARS_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}" + "," + f"{packet_payload_length}" + ","+ f"{timestamp}" +  
                            "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":" + f"{JPL_DATA_CHANNEL_0}" + ":"
                 + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":" 
+                + f"{GEIGER_01_COUNT}" + ":" + f"{GEIGER_02_COUNT}" + ":" + f"{GEIGER_03_COUNT}" + ":" + f"{GEIGER_04_COUNT}" + ":" + f"{GEIGER_05_COUNT}" + ":"
+                + f"{GEIGER_06_COUNT}" + ":" + f"{GEIGER_07_COUNT}" + ":" + f"{GEIGER_08_COUNT}" + ":" + f"{GEIGER_09_COUNT}" + ":" + f"{GEIGER_10_COUNT}" + ":"
                 + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":" + f"{self.PI_UBLOX_GPS}"
+                + f"," + f"{cpu_temperature}" + "," + f"{system_input_voltage}" + "," + f"{cpu_ram_voltage}" + "," + f"{rtc_battery_voltage}"  
                 + "," + f"{packet_checksum}" + "," + f"{ending_character}"
             )
 
@@ -204,6 +213,16 @@ def sensor_worker_thread():
     global JPL_DATA_CHANNEL_1
     global JPL_DATA_CHANNEL_2
     global JPL_DATA_CHANNEL_3
+    global GEIGER_01_COUNT
+    global GEIGER_02_COUNT
+    global GEIGER_03_COUNT
+    global GEIGER_04_COUNT
+    global GEIGER_05_COUNT
+    global GEIGER_06_COUNT
+    global GEIGER_07_COUNT
+    global GEIGER_08_COUNT
+    global GEIGER_09_COUNT
+    global GEIGER_10_COUNT
 
     print("sensor thread running")
     print(f"stop sensor data thread status: {stop_sensor_data_thread}")
@@ -217,10 +236,12 @@ def sensor_worker_thread():
                     case 0x01:
                         #pass
                         queue_count_number = pico1_geiger_1.READ_QUEUE()
+                        GEIGER_01_COUNT = queue_count_number
                         data = pico1_geiger_1.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_1,{datetime.now(timezone.utc)},{item}")
                         queue_count_number = pico2_geiger_1.READ_QUEUE()
+                        GEIGER_06_COUNT = queue_count_number
                         data = pico2_geiger_1.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_6,{datetime.now(timezone.utc)},{item}")
@@ -228,10 +249,12 @@ def sensor_worker_thread():
                     case 0x03:
                         #pass
                         queue_count_number = pico1_geiger_2.READ_QUEUE()
+                        GEIGER_02_COUNT = queue_count_number
                         data = pico1_geiger_2.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_2,{datetime.now(timezone.utc)},{item}")
                         queue_count_number = pico2_geiger_2.READ_QUEUE()
+                        GEIGER_07_COUNT = queue_count_number
                         data = pico2_geiger_2.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_7,{datetime.now(timezone.utc)},{item}")
@@ -239,10 +262,12 @@ def sensor_worker_thread():
                     case 0x0A:
                         #pass
                         queue_count_number = pico1_geiger_3.READ_QUEUE()
+                        GEIGER_03_COUNT = queue_count_number
                         data = pico1_geiger_3.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_3,{datetime.now(timezone.utc)},{item}")
                         queue_count_number = pico2_geiger_3.READ_QUEUE()
+                        GEIGER_08_COUNT = queue_count_number
                         data = pico2_geiger_3.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_8,{datetime.now(timezone.utc)},{item}")
@@ -250,10 +275,12 @@ def sensor_worker_thread():
                     case 0X0C:
                         #pass
                         queue_count_number = pico1_geiger_4.READ_QUEUE()
+                        GEIGER_04_COUNT = queue_count_number
                         data = pico1_geiger_4.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_4,{datetime.now(timezone.utc)},{item}")
                         queue_count_number = pico2_geiger_4.READ_QUEUE()
+                        GEIGER_09_COUNT = queue_count_number
                         data = pico2_geiger_4.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_9,{datetime.now(timezone.utc)},{item}")
@@ -261,10 +288,12 @@ def sensor_worker_thread():
                     case 0x0E:
                         #pass
                         queue_count_number = pico1_geiger_5.READ_QUEUE()
+                        GEIGER_05_COUNT = queue_count_number
                         data = pico1_geiger_5.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_5,{datetime.now(timezone.utc)},{item}")
                         queue_count_number = pico2_geiger_5.READ_QUEUE()
+                        GEIGER_10_COUNT = queue_count_number
                         data = pico2_geiger_5.READ_GEIGER(queue_count_number)
                         for item in data:
                             DATA_QUEUE.put(f"GEIGER_10,{datetime.now(timezone.utc)},{item}")
@@ -313,8 +342,8 @@ def sensor_worker_thread():
                         pass
                         #gps_data = _gps.get_gps_data()
                         #DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{gps_data}")
-                        #GPS_UBLOX_DATA = PI_UBLOX_GPS_Class.GET_GPS_DATA()                  
-                        #DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{GPS_UBLOX_DATA}")
+                        GPS_UBLOX_DATA = PI_UBLOX_GPS_Class.GET_GPS_DATA()                  
+                        DATA_QUEUE.put(f"PI_UBLOX_GPS,{datetime.now(timezone.utc)},{GPS_UBLOX_DATA}")
 
                     case 0x13:
                         #pass
@@ -355,6 +384,14 @@ def sensor_worker_thread():
                         DATA_QUEUE.put(f"INA228_3,{datetime.now(timezone.utc)},{data}")
                         data = INA228_4.READ_INA228()
                         DATA_QUEUE.put(f"INA228_4,{datetime.now(timezone.utc)},{data}")
+
+                    case 0x17:
+                        # PICO Time
+                        #pass
+                        data = pico1_TIME.READ_PICO_TIME()
+                        DATA_QUEUE.put(f"PICO_1_TIME,{datetime.now(timezone.utc)},{data}")
+                        data = pico2_TIME.READ_PICO_TIME()
+                        DATA_QUEUE.put(f"PICO_2_TIME,{datetime.now(timezone.utc)},{data}")
 
                 if stop_sensor_data_thread:
                     break
@@ -563,7 +600,11 @@ def receive_serial_data():
                                 pass
 
                         case 0x966A:
-                            pass
+                            # pass
+                            JPL_OFF.value = True
+                            time.sleep(0.5)
+                            JPL_OFF.value = False
+                            os.system("sudo shutdown -h now")
 
                         case 0x9868:
                             buffer = bytearray(latest_command.get_latest_command().encode("utf-8"))
@@ -634,6 +675,7 @@ REGISTER_12 = 0X0C    # GEIGER_4_COUNT_REGISTER 12
 REGISTER_13 = 0X0D    # GEIGER_4_DATA_REGISTER  13
 REGISTER_14 = 0X0E    # GEIGER_5_COUNT_REGISTER 14
 REGISTER_15 = 0X0F    # GEIGER_5_DATA_REGISTER  15
+REGISTER_16 = 0X10    # PICO TIME_REGISTER      16
 
 #BME280 REGISTER ON THE PICO
 REGISTER_5 = 0X05     # BME280_REGISTER 5
@@ -660,6 +702,16 @@ JPL_DATA_CHANNEL_0 = "0: 0"
 JPL_DATA_CHANNEL_1 = "0: 0"
 JPL_DATA_CHANNEL_2 = "0: 0"
 JPL_DATA_CHANNEL_3 = "0: 0"
+GEIGER_01_COUNT = 0
+GEIGER_02_COUNT = 0
+GEIGER_03_COUNT = 0
+GEIGER_04_COUNT = 0
+GEIGER_05_COUNT = 0
+GEIGER_06_COUNT = 0
+GEIGER_07_COUNT = 0
+GEIGER_08_COUNT = 0
+GEIGER_09_COUNT = 0
+GEIGER_10_COUNT = 0
 
 # Thread class instances 
 state_machine = HASP_STATES()
@@ -689,7 +741,7 @@ serial_thread.start()
 # SENSORS I2C 
 PI_BME280_Class = BME280_I2C_DEVICE(i2c_pi_bus,PI_BME280_ADDRESS)
 PI_MPU9250_Class = MPU9250_I2C_DEVICE(i2c_pi_bus,PI_MPU9250_ADDRESS)
-#PI_UBLOX_GPS_Class = I2C_GPS_UBLOX(i2c_pi_bus,PI_UBLOX_GPS_ADDRESS)     
+PI_UBLOX_GPS_Class = I2C_GPS_UBLOX(i2c_pi_bus,PI_UBLOX_GPS_ADDRESS)     
 PI_SCD30_Class = SCD30_I2C_DEVICE(i2c_pi_bus,PI_SCD30_ADDRESS)
 #PI_SGP30_Class = 
 
@@ -725,6 +777,9 @@ pico2_DS18 = PICO_DS18_I2C_DEVICE(i2c, PICO_2_ADDR, REGISTER_7)
 pico1_MPU9250 = PICO_MPU9250_I2C_DEVICE(i2c, PICO_1_ADDR, REGISTER_8, REGISTER_9)
 pico2_MPU9250 = PICO_MPU9250_I2C_DEVICE(i2c, PICO_2_ADDR, REGISTER_8, REGISTER_9)
 
+pico1_TIME = PICO_TIME(i2c, PICO_1_ADDR, REGISTER_16)
+pico2_TIME = PICO_TIME(i2c, PICO_2_ADDR, REGISTER_16)
+
 timestamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
 _HaspLoggerDatabase_Name = f"HaspLogger_{timestamp}.db"
 _HaspPacketDatabase_Name = f"HaspPacket_{timestamp}.db"
@@ -747,7 +802,7 @@ while True:
             # Initialize devices 
             PI_MPU9250_Class.SETUP_MPU9250()
             PI_BME280_Class.INIT_BME280()
-            #PI_UBLOX_GPS_Class.INIT_GPS()  
+            PI_UBLOX_GPS_Class.INIT_GPS()  
             PI_SCD30_Class.INIT_SCD30()
 
             # Initialize Channels 
@@ -762,7 +817,7 @@ while True:
 
             # Check if initialization work 
             if (PI_BME280_Class.BME280_INITIALIZED and PI_MPU9250_Class.MPU9250_INITIALIZED 
-            #and PI_UBLOX_GPS_Class.GPS_INITIALIZED 
+            and PI_UBLOX_GPS_Class.GPS_INITIALIZED 
             and PI_ADS1115_JPL_1.CHANNELS_INITIALIZED
             and PI_SCD30_Class.SCD30_INITIALIZED and INA228_1.INA228_INITIALIZED):   # Will change this to a wrapper that loops and initializes all devices together. 
                 print("All Devices INITIALIZED")
@@ -775,6 +830,15 @@ while True:
                 cursor.execute(
                     "CREATE TABLE IF NOT EXISTS HASP_Table (SensorID TEXT, DATA TEXT, TIME TEXT,PACKET)"
                 )
+
+                HaspLogger.commit()
+
+                with sql.connect(_HaspLoggerDatabase_Name) as HaspLogger:
+                    cursor = HaspLogger.cursor()
+                    cursor.execute(
+                        "INSERT INTO HASP_Table (SensorID, DATA, TIME) VALUES (?, ?, ?)",
+                        ("STARTUP", datetime.now(timezone.utc), datetime.now(timezone.utc))
+                    )
 
                 HaspLogger.commit()
 
