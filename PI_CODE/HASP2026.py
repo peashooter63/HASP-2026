@@ -133,7 +133,7 @@ class Latest_Data:
 
             BUILD_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}"  + ","+ f"{timestamp}" +  
                            "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":"
-                + f"{INA_1_DATA}" + "," + f"{INA_2_DATA}" + "," + f"{INA_3_DATA}" + "," + f"{INA_4_DATA}" + ":"
+                + f"{INA_1_DATA}" + ":" + f"{INA_2_DATA}" + ":" + f"{INA_3_DATA}" + ":" + f"{INA_4_DATA}" + ":"
                 + f"{JPL_DATA_CHANNEL_0}" + ":" + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":"
                 + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":"
                 + f"{GEIGER_01_COUNT}" + ":" + f"{GEIGER_02_COUNT}" + ":" + f"{GEIGER_03_COUNT}" + ":" + f"{GEIGER_04_COUNT}" + ":" + f"{GEIGER_05_COUNT}" + ":"
@@ -149,7 +149,7 @@ class Latest_Data:
 
             CESARS_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}" + "," + f"{packet_payload_length}" + ","+ f"{timestamp}" +  
                            "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":"
-                + f"{INA_1_DATA}" + "," + f"{INA_2_DATA}" + "," + f"{INA_3_DATA}" + "," + f"{INA_4_DATA}" + ":"
+                + f"{INA_1_DATA}" + ":" + f"{INA_2_DATA}" + ":" + f"{INA_3_DATA}" + ":" + f"{INA_4_DATA}" + ":"
                 + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":" 
                 + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":"
                 + f"{GEIGER_01_COUNT}" + ":" + f"{GEIGER_02_COUNT}" + ":" + f"{GEIGER_03_COUNT}" + ":" + f"{GEIGER_04_COUNT}" + ":" + f"{GEIGER_05_COUNT}" + ":"
