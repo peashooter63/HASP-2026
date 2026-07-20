@@ -138,6 +138,7 @@ class Latest_Data:
                 + f"{GEIGER_01_COUNT}" + ":" + f"{GEIGER_02_COUNT}" + ":" + f"{GEIGER_03_COUNT}" + ":" + f"{GEIGER_04_COUNT}" + ":" + f"{GEIGER_05_COUNT}" + ":"
                 + f"{GEIGER_06_COUNT}" + ":" + f"{GEIGER_07_COUNT}" + ":" + f"{GEIGER_08_COUNT}" + ":" + f"{GEIGER_09_COUNT}" + ":" + f"{GEIGER_10_COUNT}" + ":"
                 + f"{self.PI_UBLOX_GPS}"
+                + f"," + f"{INA_1_DATA}" + "," + f"{INA_2_DATA}" + "," + f"{INA_3_DATA}" + "," + f"{INA_4_DATA}"
                 + f"," + f"{cpu_temperature}" + "," + f"{system_input_voltage}" + "," + f"{cpu_ram_voltage}" + "," + f"{rtc_battery_voltage}"  
                 + "," + f"{packet_checksum}" + "," + f"{ending_character}"
             )
@@ -153,6 +154,7 @@ class Latest_Data:
                 + f"{GEIGER_01_COUNT}" + ":" + f"{GEIGER_02_COUNT}" + ":" + f"{GEIGER_03_COUNT}" + ":" + f"{GEIGER_04_COUNT}" + ":" + f"{GEIGER_05_COUNT}" + ":"
                 + f"{GEIGER_06_COUNT}" + ":" + f"{GEIGER_07_COUNT}" + ":" + f"{GEIGER_08_COUNT}" + ":" + f"{GEIGER_09_COUNT}" + ":" + f"{GEIGER_10_COUNT}" + ":"
                 + f"{self.PI_UBLOX_GPS}"
+                + f"," + f"{INA_1_DATA}" + "," + f"{INA_2_DATA}" + "," + f"{INA_3_DATA}" + "," + f"{INA_4_DATA}"
                 + f"," + f"{cpu_temperature}" + "," + f"{system_input_voltage}" + "," + f"{cpu_ram_voltage}" + "," + f"{rtc_battery_voltage}"  
                 + "," + f"{packet_checksum}" + "," + f"{ending_character}"
             )
@@ -225,6 +227,10 @@ def sensor_worker_thread():
     global GEIGER_08_COUNT
     global GEIGER_09_COUNT
     global GEIGER_10_COUNT
+    global INA_1_DATA
+    global INA_2_DATA
+    global INA_3_DATA
+    global INA_4_DATA
 
     print("sensor thread running")
     print(f"stop sensor data thread status: {stop_sensor_data_thread}")
@@ -379,12 +385,16 @@ def sensor_worker_thread():
                     case 0x16:
                         #pass
                         data = INA228_1.READ_INA228()
+                        INA_1_DATA = data
                         DATA_QUEUE.put(f"INA228_1,{datetime.now(timezone.utc)},{data}")
                         data = INA228_2.READ_INA228()
+                        INA_2_DATA = data
                         DATA_QUEUE.put(f"INA228_2,{datetime.now(timezone.utc)},{data}")
                         data = INA228_3.READ_INA228()
+                        INA_3_DATA = data
                         DATA_QUEUE.put(f"INA228_3,{datetime.now(timezone.utc)},{data}")
                         data = INA228_4.READ_INA228()
+                        INA_4_DATA = data
                         DATA_QUEUE.put(f"INA228_4,{datetime.now(timezone.utc)},{data}")
 
                     case 0x17:
@@ -714,6 +724,10 @@ GEIGER_07_COUNT = 0
 GEIGER_08_COUNT = 0
 GEIGER_09_COUNT = 0
 GEIGER_10_COUNT = 0
+INA_1_DATA = "00.00:00.00:00.00:00.00:00.00"
+INA_2_DATA = "00.00:00.00:00.00:00.00:00.00"
+INA_3_DATA = "00.00:00.00:00.00:00.00:00.00"
+INA_4_DATA = "00.00:00.00:00.00:00.00:00.00"
 
 # Thread class instances 
 state_machine = HASP_STATES()
