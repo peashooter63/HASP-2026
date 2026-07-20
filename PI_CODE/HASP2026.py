@@ -132,13 +132,13 @@ class Latest_Data:
             rtc_battery_voltage = os.popen("vcgencmd pmic_read_adc BATT_V").readline().rstrip("\r\n").strip("'").strip()
 
             BUILD_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}"  + ","+ f"{timestamp}" +  
-                           "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":" + f"{JPL_DATA_CHANNEL_0}" + ":"
-                + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":"
+                           "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":"
+                + f"{INA_1_DATA}" + "," + f"{INA_2_DATA}" + "," + f"{INA_3_DATA}" + "," + f"{INA_4_DATA}" + ":"
+                + f"{JPL_DATA_CHANNEL_0}" + ":" + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":"
                 + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":"
                 + f"{GEIGER_01_COUNT}" + ":" + f"{GEIGER_02_COUNT}" + ":" + f"{GEIGER_03_COUNT}" + ":" + f"{GEIGER_04_COUNT}" + ":" + f"{GEIGER_05_COUNT}" + ":"
                 + f"{GEIGER_06_COUNT}" + ":" + f"{GEIGER_07_COUNT}" + ":" + f"{GEIGER_08_COUNT}" + ":" + f"{GEIGER_09_COUNT}" + ":" + f"{GEIGER_10_COUNT}" + ":"
                 + f"{self.PI_UBLOX_GPS}"
-                + f"," + f"{INA_1_DATA}" + "," + f"{INA_2_DATA}" + "," + f"{INA_3_DATA}" + "," + f"{INA_4_DATA}"
                 + f"," + f"{cpu_temperature}" + "," + f"{system_input_voltage}" + "," + f"{cpu_ram_voltage}" + "," + f"{rtc_battery_voltage}"  
                 + "," + f"{packet_checksum}" + "," + f"{ending_character}"
             )
@@ -148,13 +148,13 @@ class Latest_Data:
             #CESARS_Packet = (f"C,E,{packet_payload_length},{BUILD_PACKET},CHECKSUM,{ending_character}")   
 
             CESARS_PACKET =( "C" + "," + "E" + "," + f"{PACKET_COUNTER}" + "," + f"{packet_payload_length}" + ","+ f"{timestamp}" +  
-                           "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":" + f"{JPL_DATA_CHANNEL_0}" + ":"
+                           "," f"{JPL_ON_FLAG}" + ":" + f"{JPL_ARM_FLAG}" + ":"
+                + f"{INA_1_DATA}" + "," + f"{INA_2_DATA}" + "," + f"{INA_3_DATA}" + "," + f"{INA_4_DATA}" + ":"
                 + f"{JPL_DATA_CHANNEL_1}"+ ":" + f"{JPL_DATA_CHANNEL_2}" + ":" + f"{JPL_DATA_CHANNEL_3}" + ":" 
                 + f"{self.PI_BME280}" + ":" + f"{self.PI_MPU9250}" + ":"
                 + f"{GEIGER_01_COUNT}" + ":" + f"{GEIGER_02_COUNT}" + ":" + f"{GEIGER_03_COUNT}" + ":" + f"{GEIGER_04_COUNT}" + ":" + f"{GEIGER_05_COUNT}" + ":"
                 + f"{GEIGER_06_COUNT}" + ":" + f"{GEIGER_07_COUNT}" + ":" + f"{GEIGER_08_COUNT}" + ":" + f"{GEIGER_09_COUNT}" + ":" + f"{GEIGER_10_COUNT}" + ":"
                 + f"{self.PI_UBLOX_GPS}"
-                + f"," + f"{INA_1_DATA}" + "," + f"{INA_2_DATA}" + "," + f"{INA_3_DATA}" + "," + f"{INA_4_DATA}"
                 + f"," + f"{cpu_temperature}" + "," + f"{system_input_voltage}" + "," + f"{cpu_ram_voltage}" + "," + f"{rtc_battery_voltage}"  
                 + "," + f"{packet_checksum}" + "," + f"{ending_character}"
             )
