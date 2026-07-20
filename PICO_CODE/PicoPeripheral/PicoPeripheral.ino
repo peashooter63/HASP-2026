@@ -11,17 +11,46 @@
 
 constexpr uint8_t I2C_ADDR = 0x2C;
 
+// PICO 0x2B (RED LED) OneWire temperature sensors
+//constexpr DeviceAddress tempSensors[][8] = {
+//    { 0x28, 0x70, 0x48, 0x46, 0xD9, 0x67, 0xC9, 0x4D },
+//    { 0x28, 0x33, 0xFE, 0x71, 0x4E, 0xC2, 0x85, 0xDA },
+//    { 0x28, 0x2D, 0xA6, 0x10, 0xFB, 0x3E, 0x74, 0x51 },
+//    { 0x28, 0xD8, 0xA0, 0x59, 0x8F, 0xE5, 0x06, 0x69 },
+//    { 0x28, 0x69, 0xD8, 0x03, 0xB7, 0xA0, 0x6D, 0x13 },
+//    { 0x28, 0x21, 0xA5, 0x0D, 0x00, 0x03, 0x24, 0xF4 }
+//};
+
+// PICO 0x2C (GREEN LED) OneWire temperature sensors
+constexpr DeviceAddress tempSensors[][8] = {
+    { 0x28, 0xD6, 0x95, 0x0D, 0x00, 0x03, 0x24, 0x87 },
+    { 0x28, 0xDA, 0xA6, 0x0D, 0x00, 0x03, 0x24, 0x30 },
+    { 0x28, 0x11, 0xBA, 0x0D, 0x00, 0x03, 0x24, 0x0A },
+    { 0x28, 0x3A, 0xA3, 0x0D, 0x00, 0x03, 0x24, 0xCB },
+    { 0x28, 0xE4, 0x83, 0x0E, 0x00, 0x03, 0x24, 0x6C },
+    { 0x28, 0x3C, 0xA2, 0x0D, 0x00, 0x03, 0x24, 0xB4 },
+    { 0x28, 0xE9, 0x90, 0x0D, 0x00, 0x03, 0x24, 0x9C }
+};
+
+// Test
+//constexpr DeviceAddress tempSensors[][8] = {
+//    { 0x28, 0x0C, 0x82, 0x7D, 0xBF, 0x55, 0x9F, 0x25 },   // I
+//    { 0x28, 0xCA, 0xA2, 0x0E, 0x00, 0x03, 0x24, 0xFC },   // II
+//    { 0x28, 0x98, 0x88, 0x76, 0xC5, 0x06, 0x04, 0xF7 },   // III
+//    { 0x28, 0xBB, 0xA0, 0x96, 0x5F, 0x74, 0xD0, 0xC4 }    // IIII
+//};
+
 //#define DEBUG_MODE    // Comment this line out for production code, uncomment it for testing
 
 //#define LED_PIN 22
 
 #define GEIGER_1_INTERRUPT_PIN 21
-#define GEIGER_2_INTERRUPT_PIN 22
-#define GEIGER_3_INTERRUPT_PIN 26
-#define GEIGER_4_INTERRUPT_PIN 27
-#define GEIGER_5_INTERRUPT_PIN 28
+#define GEIGER_2_INTERRUPT_PIN 28
+#define GEIGER_3_INTERRUPT_PIN 27
+#define GEIGER_4_INTERRUPT_PIN 22
+#define GEIGER_5_INTERRUPT_PIN 26
 
-#define GEIGER_QUEUE_SIZE 100
+#define GEIGER_QUEUE_SIZE 10000
 
 #define WIRE0_SDA_PIN 0
 #define WIRE0_SCL_PIN 1
@@ -43,6 +72,8 @@ constexpr uint8_t I2C_ADDR = 0x2C;
 
 #define GEIGER_5_COUNT_REGISTER 14
 #define GEIGER_5_DATA_REGISTER  15
+
+#define PICO_TIME_REGISTER      16
 
 #define BME_280_DATA 5
 #define RMU_DATA     6
@@ -104,6 +135,7 @@ typedef struct __attribute__((packed)) {
 Adafruit_BME280 bme;
 MPU9250 mpu;
 MPU9250Setting mpu_setting;
+
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
@@ -122,41 +154,46 @@ void handleInterrupt() {
 
   if (!(sio_hw->gpio_in & (1 << GEIGER_1_INTERRUPT_PIN)))   // If the pin is low, we have an interrupt on that pin
   {
+    Serial.println("Geiger 1 Interrupt");
     if (geiger_1.enqueueItem(m) == false)
     {
-      Serial.println("Guiger 1 Queue is full.");
+      Serial.println("Geiger 1 Queue is full.");
     }
   }
 
   if (!(sio_hw->gpio_in & (1 << GEIGER_2_INTERRUPT_PIN)))   // If the pin is low, we have an interrupt on that pin
   {
+    Serial.println("Geiger 2 Interrupt");
     if (geiger_2.enqueueItem(m) == false)
     {
-      Serial.println("Guiger 2 Queue is full.");
+      Serial.println("Geiger 2 Queue is full.");
     }
   }
 
   if (!(sio_hw->gpio_in & (1 << GEIGER_3_INTERRUPT_PIN)))   // If the pin is low, we have an interrupt on that pin
   {
+    Serial.println("Geiger 3 Interrupt");
     if (geiger_3.enqueueItem(m) == false)
     {
-      Serial.println("Guiger 3 Queue is full.");
+      Serial.println("Geiger 3 Queue is full.");
     }
   }
 
   if (!(sio_hw->gpio_in & (1 << GEIGER_4_INTERRUPT_PIN)))   // If the pin is low, we have an interrupt on that pin
   {
+    Serial.println("Geiger 4 Interrupt");
     if (geiger_4.enqueueItem(m) == false)
     {
-      Serial.println("Guiger 4 Queue is full.");
+      Serial.println("Geiger 4 Queue is full.");
     }
   }
 
   if (!(sio_hw->gpio_in & (1 << GEIGER_5_INTERRUPT_PIN)))   // If the pin is low, we have an interrupt on that pin
   {
+    Serial.println("Geiger 5 Interrupt");
     if (geiger_5.enqueueItem(m) == false)
     {
-      Serial.println("Guiger 5 Queue is full.");
+      Serial.println("Geiger 5 Queue is full.");
     }
   }
 }
@@ -301,13 +338,17 @@ void onI2CRequest() {
         ds18.temperature7 = DEVICE_DISCONNECTED_C;
         ds18.time = millis();
 
-        int n = sensors.getDS18Count();
+        //int n = sensors.getDS18Count();
+        int n = sizeof(tempSensors) / (sizeof(DeviceAddress) * 8);
         if (n > 0)
         {
+          float tempC = DEVICE_DISCONNECTED_C;
           sensors.requestTemperatures();
           for (int i=0; i<n; i++)
           {
-            float tempC = sensors.getTempCByIndex(i);
+            tempC = DEVICE_DISCONNECTED_C;
+            //float tempC = sensors.getTempCByIndex(i);
+            tempC = sensors.getTempC(*tempSensors[i]);
             if(tempC != DEVICE_DISCONNECTED_C)
             {
               switch (i)
@@ -365,6 +406,13 @@ void onI2CRequest() {
         memcpy(buffer, &mpudata2, sizeof(mpudata2));
         Wire.write(buffer, 32);
       }
+      break;
+
+    case PICO_TIME_REGISTER:
+        unsigned long s = millis();
+        byte byteArray[sizeof(unsigned long)];
+        memcpy(byteArray, &s, sizeof(unsigned long));
+        Wire.write(byteArray, 4);
       break;
   }
 }
@@ -426,6 +474,9 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(GEIGER_1_INTERRUPT_PIN), handleInterrupt, FALLING);
   attachInterrupt(digitalPinToInterrupt(GEIGER_2_INTERRUPT_PIN), handleInterrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(GEIGER_3_INTERRUPT_PIN), handleInterrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(GEIGER_4_INTERRUPT_PIN), handleInterrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(GEIGER_5_INTERRUPT_PIN), handleInterrupt, FALLING);
 
   digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
 
@@ -434,7 +485,27 @@ void setup() {
   //sox_settings();
 
   sensors.begin();
+
+  DeviceAddress devAdd;
+  oneWire.reset_search();
+  Serial.println("**************");
+  while (oneWire.search(devAdd))
+  {
+    Serial.print("ROM = ");
+    for (uint8_t i = 0; i < 8; i++)
+    {
+      if (devAdd[i] < 16)
+      {
+        Serial.print('0');
+      }
+      Serial.print(devAdd[i], HEX);
+    }
+    Serial.println();
+  }
+  Serial.println("**************");
 }
+
+int _led_state = HIGH;
 
 void loop() {
   //digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
@@ -476,7 +547,38 @@ void loop() {
       mpudata2.data7 = mpu.getTemperature();
       mpudata2.time = millis();
 
+      Serial.print("My I2C Address: ");
+      Serial.println(I2C_ADDR, HEX);
+
+      //Serial.println(bme.readTemperature());              // Celsius
+      //Serial.println(bme.readHumidity());                 // %RH
+      //Serial.println(bme.readPressure());                 // mbar
+      //float seaLevelPressure = 1013.25;
+      //Serial.println(bme.readAltitude(seaLevelPressure)); // meters
+
+      //int n = sensors.getDS18Count();
+      //Serial.println(n);
+      //sensors.requestTemperatures();
+      //for (int i=0; i<n; i++)
+      //{
+      //  float tempC = sensors.getTempCByIndex(i);
+      //  Serial.println(tempC);
+      //}
+
       print_mpu_data();
+
+      if (_led_state == LOW)
+      {
+        digitalWrite(LED_BUILTIN, LOW);
+        Serial.println(_led_state);
+        _led_state = HIGH;
+      }
+      else
+      {
+        digitalWrite(LED_BUILTIN, HIGH);
+        Serial.println(_led_state);
+        _led_state = LOW;
+      }
 
       prev_ms = millis();
     }
@@ -618,14 +720,12 @@ void loop() {
   Serial.print("Requesting temperatures...");
   sensors.requestTemperatures();
   Serial.println("DONE");
-
-  Serial.println(ds18.temperature1);
-  Serial.println(ds18.temperature2);
-  Serial.println(ds18.temperature3);
-  Serial.println(ds18.temperature4);
-  Serial.println(ds18.temperature5);
-  Serial.println(ds18.temperature6);
-  Serial.println(ds18.temperature7);
+  int n = sizeof(tempSensors) / (sizeof(DeviceAddress) * 8);
+  Serial.println(n);
+  for (int i = 0; i < n; i++)
+  {
+    Serial.println(sensors.getTempC(*tempSensors[i]));
+  }
   ds18.time = millis();
   //char buffer[sizeof(ds18Data)];
   memcpy(buffer, &ds18, sizeof(ds18));
@@ -633,6 +733,27 @@ void loop() {
   //{
   //  Serial.println(buffer[i], HEX);
   //}
+
+  DeviceAddress devAdd;
+  oneWire.reset_search();
+  Serial.println("**************");
+  while (oneWire.search(devAdd))
+  {
+    Serial.print("ROM = ");
+    for (uint8_t i = 0; i < 8; i++)
+    {
+      if (devAdd[i] < 16)
+      {
+        Serial.print('0');
+      }
+      Serial.print(devAdd[i], HEX);
+    }
+    Serial.println();
+  }
+  Serial.println("**************");
+
+
+
 #endif
 
 }
