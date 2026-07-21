@@ -98,7 +98,7 @@ class Latest_Data:
     def update_sensor_data(self, sensor_ID, current_data):     # UPDATE THIS and for processing design make a list to check if a sensor ID is a sensor you want to ctlly downlink
         sensor_id_list = (["JPL_ON","JPL_ARM","INA228_1","INA228_2","INA228_3","INA228_4",
                           "JPL_ARM_STATUS","JPL_A0","JPL_A1","JPL_A2","JPL_A3",
-                          "PI_BME280", "PI_MPU9250","GEIGER_1","GEIGER_1","GEIGER_2","GEIGER_3"
+                          "PI_BME280", "PI_MPU9250","GEIGER_1","GEIGER_1","GEIGER_2","GEIGER_3",
                           "GEIGER_4","GEIGER_5","GEIGER_6","GEIGER_7","GEIGER_8","GEIGER_9","GEIGER_10","PI_UBLOX_GPS"
                           ])
         
